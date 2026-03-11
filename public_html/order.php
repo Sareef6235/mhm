@@ -221,6 +221,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['review_order']) || i
             </div>
         </div>
 
+        <div class="form-section mb-3">
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <h5 class="mb-0">Show Books (Read Only Preview)</h5>
+                <button type="button" id="showBooksBtn" class="btn btn-outline-madrasa">Show Book</button>
+            </div>
+            <div id="showBooksPreview" class="mt-3" style="display:none;">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead><tr><th>Item Name</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                        <tbody id="showBooksPreviewBody">
+                            <tr><td colspan="5" class="text-center text-muted">No selected items yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div class="form-section">
             <h5>Order Summary Before Confirm</h5>
             <p>Final Total Amount: <strong>₹<span id="liveTotal">0.00</span></strong></p>
