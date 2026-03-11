@@ -54,6 +54,29 @@ body {
     box-shadow: 0 10px 24px rgba(15, 109, 73, 0.08);
 }
 
+.class-card {
+    border: 1px solid #d7ebe0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 14px rgba(15, 109, 73, 0.08);
+}
+
+.accordion-button {
+    background: #f4fbf6;
+    color: #0d5137;
+    font-weight: 600;
+}
+
+.accordion-button:not(.collapsed) {
+    background: var(--accent);
+    color: var(--primary-dark);
+    box-shadow: none;
+}
+
+.accordion-collapse {
+    transition: all 0.35s ease;
+}
+
 .footer-note {
     color: var(--muted);
     font-size: 0.9rem;

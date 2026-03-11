@@ -36,16 +36,20 @@ INSERT INTO admin (username, password)
 VALUES ('admin', '$2y$12$k4jxSd9qC9Ct2pAIohB/pegFn1CyiEDMdRMvu/zwfjx0Sti7n/Mge')
 ON DUPLICATE KEY UPDATE username = VALUES(username);
 
+TRUNCATE TABLE books;
 INSERT INTO books (book_name, class, price) VALUES
-('Fiqh', 'I', 90),
-('Quran', 'I', 120),
-('Aqaid', 'II', 80),
-('Hadith', 'III', 95),
-('Tajweed', 'IV', 70),
-('Arabic Grammar', 'V', 85),
-('Sirat', 'VI', 75),
-('Nahvu', 'VII', 60),
-('Balagat', 'VIII', 65),
-('Tafsir', 'IX', 110),
-('Arabic', 'X', 50)
-ON DUPLICATE KEY UPDATE price = VALUES(price);
+('Fiqh', '1', 90),
+('Arabic Basics', '1', 80),
+('Nahvu Intro', '1', 70),
+('Quran', '2', 120),
+('Aqaid', '2', 85),
+('Hadith', '3', 95),
+('Tajweed', '4', 75),
+('Arabic Grammar', '5', 85),
+('Sirat', '6', 78),
+('Nahvu Advanced', '7', 60),
+('Balagat', '8', 65),
+('Tafsir', '9', 110),
+('Arabic', '10', 50),
+('Usul al-Fiqh', '11', 130),
+('Mantiq', '12', 140);

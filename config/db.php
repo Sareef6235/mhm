@@ -7,9 +7,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $dbHost = 'localhost';
-$dbName = 'madrasa_books';
-$dbUser = 'root';
-$dbPass = '';
+$dbName = 'hvernued_range';
+$dbUser = 'hvernued_cpses_hvnqmd5ph8';
+$dbPass = 'Zirect@1618*1##';
 
 $dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
 

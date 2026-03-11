@@ -1,7 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 
-$books = $pdo->query('SELECT id, book_name, class, price FROM books ORDER BY class, book_name')->fetchAll();
+$classCounts = $pdo->query('SELECT class, COUNT(*) AS total_books FROM books GROUP BY class ORDER BY CAST(class AS UNSIGNED)')->fetchAll();
+$map = [];
+foreach ($classCounts as $row) {
+    $map[(int)$row['class']] = (int)$row['total_books'];
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -26,33 +30,25 @@ $books = $pdo->query('SELECT id, book_name, class, price FROM books ORDER BY cla
 
 <div class="container py-4">
     <div class="p-4 p-md-5 mb-4 rounded-4 text-white bg-madrasa">
-        <h1 class="display-6">Order Madrasa Books Easily</h1>
-        <p class="lead mb-0">Secure and mobile-friendly portal for students to place book orders online.</p>
+        <h1 class="display-6">Madrasa Book Ordering</h1>
+        <p class="lead mb-0">Select Class 1 to 12, expand the dropdown, and book books instantly.</p>
     </div>
 
     <div class="form-section">
-        <h4 class="mb-3">Available Books</h4>
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead>
-                <tr>
-                    <th>Book Name</th>
-                    <th>Class</th>
-                    <th>Price</th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($books as $book): ?>
-                    <tr>
-                        <td><?= e($book['book_name']) ?></td>
-                        <td><?= e($book['class']) ?></td>
-                        <td>৳<?= number_format((float) $book['price'], 2) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
+        <h4 class="mb-3">Classes (1-12)</h4>
+        <div class="row g-3">
+            <?php for ($i = 1; $i <= 12; $i++): ?>
+                <div class="col-6 col-md-3">
+                    <div class="card card-soft h-100">
+                        <div class="card-body">
+                            <h6 class="mb-1">Class <?= $i ?></h6>
+                            <small class="text-muted"><?= (int)($map[$i] ?? 0) ?> books available</small>
+                        </div>
+                    </div>
+                </div>
+            <?php endfor; ?>
         </div>
-        <a href="order.php" class="btn btn-madrasa">Proceed to Book</a>
+        <a href="order.php" class="btn btn-madrasa mt-3">Open Class Dropdown Booking</a>
     </div>
 </div>
 </body>

@@ -4,6 +4,7 @@ require_admin();
 
 $message = '';
 $error = '';
+$classes = range(1, 12);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf()) {
@@ -15,16 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $price = (float)($_POST['price'] ?? 0);
 
         if ($action === 'add' || $action === 'edit') {
-            if ($bookName === '' || $class === '' || $price <= 0) {
-                $error = 'Book name, class and valid price are required.';
+            if ($bookName === '' || !in_array((int)$class, $classes, true) || $price <= 0) {
+                $error = 'Book name, class (1-12), and valid price are required.';
             } elseif ($action === 'add') {
                 $stmt = $pdo->prepare('INSERT INTO books (book_name, class, price) VALUES (:book_name, :class, :price)');
-                $stmt->execute([':book_name' => $bookName, ':class' => $class, ':price' => $price]);
+                $stmt->execute([':book_name' => $bookName, ':class' => (string)$class, ':price' => $price]);
                 $message = 'Book added successfully.';
             } else {
                 $id = (int)($_POST['id'] ?? 0);
                 $stmt = $pdo->prepare('UPDATE books SET book_name = :book_name, class = :class, price = :price WHERE id = :id');
-                $stmt->execute([':book_name' => $bookName, ':class' => $class, ':price' => $price, ':id' => $id]);
+                $stmt->execute([':book_name' => $bookName, ':class' => (string)$class, ':price' => $price, ':id' => $id]);
                 $message = 'Book updated successfully.';
             }
         } elseif ($action === 'delete') {
@@ -44,7 +45,7 @@ if (isset($_GET['edit'])) {
     $editBook = $stmt->fetch();
 }
 
-$books = $pdo->query('SELECT * FROM books ORDER BY class, book_name')->fetchAll();
+$books = $pdo->query('SELECT * FROM books ORDER BY CAST(class AS UNSIGNED), book_name')->fetchAll();
 ?>
 <!doctype html>
 <html lang="en">
@@ -84,7 +85,12 @@ $books = $pdo->query('SELECT * FROM books ORDER BY class, book_name')->fetchAll(
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Class</label>
-                        <input type="text" name="class" class="form-control" value="<?= e($editBook['class'] ?? '') ?>" required>
+                        <select name="class" class="form-select" required>
+                            <option value="">Select Class</option>
+                            <?php foreach ($classes as $classNumber): ?>
+                                <option value="<?= $classNumber ?>" <?= (string)($editBook['class'] ?? '') === (string)$classNumber ? 'selected' : '' ?>>Class <?= $classNumber ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Price</label>
@@ -106,8 +112,8 @@ $books = $pdo->query('SELECT * FROM books ORDER BY class, book_name')->fetchAll(
                         <?php foreach ($books as $book): ?>
                             <tr>
                                 <td><?= e($book['book_name']) ?></td>
-                                <td><?= e($book['class']) ?></td>
-                                <td>৳<?= number_format((float)$book['price'], 2) ?></td>
+                                <td>Class <?= e($book['class']) ?></td>
+                                <td>₹<?= number_format((float)$book['price'], 2) ?></td>
                                 <td>
                                     <a class="btn btn-sm btn-outline-primary" href="books.php?edit=<?= (int)$book['id'] ?>">Edit</a>
                                     <form method="post" class="d-inline" onsubmit="return confirm('Delete this book?');">

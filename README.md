@@ -6,6 +6,11 @@ A complete PHP + MySQL web app for student book ordering and admin order/book ma
 - Username: `admin`
 - Password: `mhnu1234`
 
+## Key Update: Class-Based Dropdown (1-12)
+- Student booking page now shows Class 1 to Class 12 as Bootstrap accordion dropdown sections.
+- Clicking one class expands only that class section and collapses others.
+- Inside each class section, books are loaded dynamically from MySQL and shown in a table with Book Name, Price, Quantity, and Book button.
+
 ## Project Structure
 ```
 /public_html
@@ -41,4 +46,3 @@ A complete PHP + MySQL web app for student book ordering and admin order/book ma
 - CSRF token checks on forms.
 - Session-based admin authentication.
 - Output escaping via `htmlspecialchars`.
-
