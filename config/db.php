@@ -164,7 +164,11 @@ function ensure_tables(PDO $pdo): void
 
 function render_site_footer(): void
 {
-    echo '<footer class="site-footer"><p>Design by <a href="https://portfolio.example.com" target="_blank" rel="noopener noreferrer">Muhsin Faizy</a></p></footer>';
+    echo '<footer class="site-footer">'
+        . '<p>Madrasa Book Portal | Contact: +91 98765 43210</p>'
+        . '<p class="meta">© ' . date('Y') . ' All Rights Reserved | Design by '
+        . '<a href="https://portfolio.example.com" target="_blank" rel="noopener noreferrer">Muhsin Faizy</a></p>'
+        . '</footer>';
 }
 
 ensure_tables($pdo);
