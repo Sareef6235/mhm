@@ -42,4 +42,5 @@ if ($studentName !== '' && $class !== '' && $gender !== '' && $classNumber !== '
 <?php foreach ($orders as $order): ?><tr><td><?= e($order['item_name'] . ($order['pages'] ? ' (' . $order['pages'] . ' pages)' : '')) ?></td><td><?= e($order['item_type']) ?></td><td><?= (int)$order['quantity'] ?></td><td>₹<?= number_format((float)$order['price'], 2) ?></td><td>₹<?= number_format((float)$order['total_price'], 2) ?></td><td><?= e($order['order_date']) ?></td></tr><?php endforeach; ?>
 <?php if (!$orders): ?><tr><td colspan="6" class="text-center">No orders found.</td></tr><?php endif; ?>
 </tbody></table></div></div></div>
+<?php render_site_footer(); ?>
 </body></html>

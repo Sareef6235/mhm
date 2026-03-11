@@ -36,9 +36,9 @@ try {
     $dbWarning = 'MySQL connection failed; running on SQLite fallback for local debugging.';
 }
 
-function e(string $value): string
+function e($value): string
 {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 function csrf_token(): string
@@ -64,15 +64,19 @@ function require_admin(): void
 
 function ensure_tables(PDO $pdo): void
 {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $idDef = $driver === 'sqlite' ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
+    $ignoreKeyword = $driver === 'sqlite' ? 'OR IGNORE' : 'IGNORE';
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS admin (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {$idDef},
         username VARCHAR(100) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {$idDef},
         student_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         gender VARCHAR(10) NOT NULL,
@@ -82,21 +86,21 @@ function ensure_tables(PDO $pdo): void
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS textbooks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {$idDef},
         book_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         price DECIMAL(10,2) NOT NULL
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS notebooks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {$idDef},
         notebook_type VARCHAR(100) NOT NULL,
         pages INTEGER NOT NULL,
         price DECIMAL(10,2) NOT NULL
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {$idDef},
         student_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         gender VARCHAR(10) NOT NULL,
@@ -111,7 +115,7 @@ function ensure_tables(PDO $pdo): void
     )");
 
     $hash = '$2y$12$k4jxSd9qC9Ct2pAIohB/pegFn1CyiEDMdRMvu/zwfjx0Sti7n/Mge';
-    $stmt = $pdo->prepare('INSERT OR IGNORE INTO admin (username, password) VALUES (:u, :p)');
+    $stmt = $pdo->prepare("INSERT {$ignoreKeyword} INTO admin (username, password) VALUES (:u, :p)");
     $stmt->execute([':u' => 'admin', ':p' => $hash]);
 
     $countBooks = (int)$pdo->query('SELECT COUNT(*) FROM textbooks')->fetchColumn();
@@ -126,6 +130,11 @@ function ensure_tables(PDO $pdo): void
         $pdo->exec("INSERT INTO notebooks (notebook_type, pages, price) VALUES
             ('Notebook',100,30),('Notebook',200,50),('Notebook',300,70)");
     }
+}
+
+function render_site_footer(): void
+{
+    echo '<footer class="site-footer"><p>Design by <a href="https://portfolio.example.com" target="_blank" rel="noopener noreferrer">Muhsin Faizy</a></p></footer>';
 }
 
 ensure_tables($pdo);

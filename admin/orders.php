@@ -85,5 +85,6 @@ $q = http_build_query(array_filter([
         </div>
     </div>
 </div>
+<?php render_site_footer(); ?>
 </body>
 </html>

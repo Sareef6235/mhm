@@ -50,4 +50,5 @@ const genderData = <?= json_encode(array_map('intval', array_column($genderAnaly
 new Chart(document.getElementById('classChart'), {type:'bar', data:{labels:classLabels, datasets:[{label:'Orders', data:classData, backgroundColor:'#0f6d49'}]}});
 new Chart(document.getElementById('genderChart'), {type:'doughnut', data:{labels:genderLabels, datasets:[{data:genderData, backgroundColor:['#0f6d49','#7acb93']}]}});
 </script>
+<?php render_site_footer(); ?>
 </body></html>

@@ -247,5 +247,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['review_order']) || i
 </div>
 
 <script src="../assets/script.js"></script>
+<?php render_site_footer(); ?>
 </body>
 </html>

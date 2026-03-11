@@ -61,5 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </div>
+<?php render_site_footer(); ?>
 </body>
 </html>

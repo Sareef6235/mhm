@@ -1,50 +1,27 @@
 # Madrasa Book Ordering Web Application (PHP + MySQL)
 
-## ✅ Fixed & Upgraded
-- Repaired core pages that previously caused HTTP 500 (`order.php`, `admin/orders.php`, `admin/dashboard.php`, `config/db.php`).
-- Added robust PDO setup, helper functions (`e`, `csrf_token`, `verify_csrf`), and automatic table checks to avoid crash on missing tables.
-- Enabled development error display for faster debugging.
+## Latest Fixes + UI Upgrade
+- Repaired critical pages that caused 500 errors (`order.php`, `admin/orders.php`, `admin/dashboard.php`, `config/db.php`).
+- Added safe DB bootstrap with MySQL-first PDO and local SQLite fallback for debug environment.
+- Kept helper functions available globally: `e()`, `csrf_token()`, `verify_csrf()`, `require_admin()`.
+- Added modern global footer on all pages:
+  - Center text: **Design by Muhsin Faizy**
+  - Soft glow highlight
+  - Hover color change and clickable portfolio link
 
-## Student Flow (No Traditional Login)
-1. Students open `public_html/index.php`.
-2. Fill Student Entry Form:
-   - Student Name
-   - Class (1-12)
-3. They are redirected to order page for that class.
+## Student Flow
+1. Open `public_html/index.php`
+2. Enter Student Name + Class
+3. Go to `order.php` and place textbook/notebook order
 
-## Order Page Features
-- Shows only textbooks of selected class.
-- Gender + Class Number fields for unique numbering logic.
-- Rule: `Class + Gender + Class Number` must be unique.
-- Two order sections:
-  - Text Books (`textbooks` table)
-  - Note Books (`notebooks` table)
-- Live total auto-calculation with JavaScript.
-- Order review summary before confirm.
+## Admin Flow
+- Login: `admin/login.php`
+- Credentials: `admin / mhnu1234`
+- Dashboard analytics + order filters + CSV export
 
-## Admin Panel
-- Admin Login: `admin / mhnu1234`
-- Dashboard cards:
-  - Total Students
-  - Total Orders
-  - Total Books Ordered
-  - Total Notebooks Ordered
-  - Total Amount
-- Analytics:
-  - Most ordered books
-  - Orders per class
-  - Male/Female order split
-- Orders page supports filters:
-  - Class
-  - Gender
-  - Book Name
-  - Date
-- CSV export available.
-
-## cPanel Deployment
-1. Upload project into `public_html` (keep folders).
-2. Create MySQL DB/user.
+## cPanel Setup
+1. Upload files preserving folders.
+2. Create MySQL DB and user.
 3. Import `database/madrasa_books.sql`.
-4. Update DB credentials in `config/db.php`.
-5. Open student entry: `public_html/index.php`.
-
+4. Set DB credentials in `config/db.php`.
+5. Open `public_html/index.php`.
