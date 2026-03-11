@@ -33,7 +33,6 @@ function csrf_token(): string
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
-
     return $_SESSION['csrf_token'];
 }
 
@@ -45,6 +44,14 @@ function verify_csrf(): bool
 function require_admin(): void
 {
     if (empty($_SESSION['admin_id'])) {
+        header('Location: login.php');
+        exit;
+    }
+}
+
+function require_student(): void
+{
+    if (empty($_SESSION['student'])) {
         header('Location: login.php');
         exit;
     }

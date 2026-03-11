@@ -1,48 +1,37 @@
-# Madrasa Book Ordering Web Application
+# Modern Madrasa Book Ordering Web Application (PHP + MySQL)
 
-A complete PHP + MySQL web app for student book ordering and admin order/book management, ready for cPanel deployment.
+## Features
+- Student login with: Name, Class (1-12), Gender, Class Number, Phone.
+- Unique validation for `Class + Gender + Class Number`.
+- Students can view/order only textbooks of their class.
+- Separate ordering sections for Textbooks and Notebooks.
+- Live JavaScript total amount calculation.
+- Order summary before confirm.
+- Admin dashboard with analytics cards + Chart.js charts.
+- Admin management for Textbooks and Notebooks (Add/Edit/Delete).
+- Admin order filtering by Class, Gender, Book Name, Date and CSV export.
 
-## Default Admin Login
+## Default Admin
 - Username: `admin`
 - Password: `mhnu1234`
 
-## Key Update: Class-Based Dropdown (1-12)
-- Student booking page now shows Class 1 to Class 12 as Bootstrap accordion dropdown sections.
-- Clicking one class expands only that class section and collapses others.
-- Inside each class section, books are loaded dynamically from MySQL and shown in a table with Book Name, Price, Quantity, and Book button.
+## File Structure
+- `public_html/login.php` (student login)
+- `public_html/order.php` (class-restricted textbook + notebook ordering)
+- `public_html/myorders.php` (student order history)
+- `admin/login.php`
+- `admin/dashboard.php`
+- `admin/textbooks.php`
+- `admin/notebooks.php`
+- `admin/orders.php`
+- `admin/export_orders.php`
+- `config/db.php`
+- `assets/style.css`, `assets/script.js`
+- `database/madrasa_books.sql`
 
-## Project Structure
-```
-/public_html
-  index.php
-  order.php
-  myorders.php
-/admin
-  login.php
-  dashboard.php
-  books.php
-  orders.php
-  export_orders.php
-  logout.php
-/config
-  db.php
-/assets
-  style.css
-  script.js
-/database
-  madrasa_books.sql
-```
-
-## Setup (Local or cPanel)
-1. Create MySQL database and user in cPanel.
-2. Import `database/madrasa_books.sql` in phpMyAdmin.
-3. Update DB credentials in `config/db.php`.
-4. Upload all project files under `public_html` (keep folder structure).
-5. Visit `/public_html/index.php` and `/admin/login.php`.
-
-## Security Measures Included
-- Prepared statements for DB queries.
-- Password hashing with `password_hash` / `password_verify`.
-- CSRF token checks on forms.
-- Session-based admin authentication.
-- Output escaping via `htmlspecialchars`.
+## cPanel Deployment
+1. Upload files to `public_html` preserving folders.
+2. Create MySQL DB/user in cPanel.
+3. Import `database/madrasa_books.sql` via phpMyAdmin.
+4. Update DB credentials in `config/db.php` if needed.
+5. Open `public_html/login.php` for students and `admin/login.php` for admin.

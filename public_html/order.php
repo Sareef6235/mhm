@@ -1,75 +1,75 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_student();
 
-$classes = range(1, 12);
-$stmt = $pdo->query('SELECT id, book_name, class, price FROM books ORDER BY CAST(class AS UNSIGNED), book_name');
-$allBooks = $stmt->fetchAll();
+$student = $_SESSION['student'];
+$class = (string)$student['class'];
 
-$booksByClass = [];
-foreach ($classes as $classNumber) {
-    $booksByClass[(string)$classNumber] = [];
-}
+$textStmt = $pdo->prepare('SELECT id, book_name, price FROM textbooks WHERE class = :class ORDER BY book_name');
+$textStmt->execute([':class' => $class]);
+$textbooks = $textStmt->fetchAll();
 
-foreach ($allBooks as $book) {
-    $bookClass = (string)$book['class'];
-    if (array_key_exists($bookClass, $booksByClass)) {
-        $booksByClass[$bookClass][] = $book;
-    }
-}
+$notebooks = $pdo->query('SELECT id, notebook_type, pages, price FROM notebooks ORDER BY pages')->fetchAll();
 
 $errors = [];
 $success = '';
+$orderSummary = [];
+$finalTotal = 0.0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf()) {
-        $errors[] = 'Invalid request token. Please refresh and try again.';
+        $errors[] = 'Invalid request token.';
     }
 
-    $studentName = trim($_POST['student_name'] ?? '');
-    $class = trim($_POST['class'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $bookId = (int)($_POST['book_id'] ?? 0);
-    $qty = (int)($_POST['quantities'][$bookId] ?? 0);
+    $textQty = $_POST['text_qty'] ?? [];
+    $noteQty = $_POST['note_qty'] ?? [];
 
-    if ($studentName === '' || $class === '' || $phone === '') {
-        $errors[] = 'Student name, class and phone number are required.';
+    foreach ($textbooks as $book) {
+        $qty = (int)($textQty[$book['id']] ?? 0);
+        if ($qty > 0) {
+            $line = $qty * (float)$book['price'];
+            $orderSummary[] = ['item_type' => 'textbook', 'item_name' => $book['book_name'], 'pages' => null, 'price' => (float)$book['price'], 'quantity' => $qty, 'total' => $line];
+            $finalTotal += $line;
+        }
     }
 
-    if (!preg_match('/^[0-9+\-\s]{8,20}$/', $phone)) {
-        $errors[] = 'Enter a valid phone number.';
+    foreach ($notebooks as $nb) {
+        $qty = (int)($noteQty[$nb['id']] ?? 0);
+        if ($qty > 0) {
+            $line = $qty * (float)$nb['price'];
+            $orderSummary[] = ['item_type' => 'notebook', 'item_name' => $nb['notebook_type'], 'pages' => (int)$nb['pages'], 'price' => (float)$nb['price'], 'quantity' => $qty, 'total' => $line];
+            $finalTotal += $line;
+        }
     }
 
-    if ($bookId <= 0 || $qty <= 0) {
-        $errors[] = 'Please select a valid quantity and click Book on a book row.';
+    if (!$orderSummary) {
+        $errors[] = 'Please select at least one item quantity.';
     }
 
     if (!$errors) {
-        $bookStmt = $pdo->prepare('SELECT book_name, class, price FROM books WHERE id = :id LIMIT 1');
-        $bookStmt->execute([':id' => $bookId]);
-        $book = $bookStmt->fetch();
-
-        if (!$book) {
-            $errors[] = 'Selected book was not found.';
-        } else {
-            $price = (float)$book['price'];
-            $totalPrice = $price * $qty;
-
-            $insert = $pdo->prepare(
-                'INSERT INTO orders (student_name, class, phone, book_name, price, quantity, total_price, order_date)
-                 VALUES (:student_name, :class, :phone, :book_name, :price, :quantity, :total_price, NOW())'
-            );
-
-            $insert->execute([
-                ':student_name' => $studentName,
-                ':class' => $class,
-                ':phone' => $phone,
-                ':book_name' => $book['book_name'],
-                ':price' => $price,
-                ':quantity' => $qty,
-                ':total_price' => $totalPrice,
-            ]);
-
-            $success = 'Book ordered successfully.';
+        $insert = $pdo->prepare('INSERT INTO orders (student_name, class, gender, class_number, phone, item_type, item_name, pages, price, quantity, total_price, order_date) VALUES (:student_name, :class, :gender, :class_number, :phone, :item_type, :item_name, :pages, :price, :quantity, :total_price, NOW())');
+        $pdo->beginTransaction();
+        try {
+            foreach ($orderSummary as $item) {
+                $insert->execute([
+                    ':student_name' => $student['student_name'],
+                    ':class' => $student['class'],
+                    ':gender' => $student['gender'],
+                    ':class_number' => $student['class_number'],
+                    ':phone' => $student['phone'],
+                    ':item_type' => $item['item_type'],
+                    ':item_name' => $item['item_name'],
+                    ':pages' => $item['pages'],
+                    ':price' => $item['price'],
+                    ':quantity' => $item['quantity'],
+                    ':total_price' => $item['total'],
+                ]);
+            }
+            $pdo->commit();
+            $success = 'Order placed successfully.';
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            $errors[] = 'Failed to place order.';
         }
     }
 }
@@ -79,84 +79,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Book Madrasa Books</title>
+    <title>Order Books</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg bg-madrasa navbar-dark">
     <div class="container">
-        <a class="navbar-brand" href="index.php">Madrasa Book Order</a>
+        <a class="navbar-brand" href="order.php">Madrasa Book Order</a>
         <div class="ms-auto d-flex gap-2">
-            <a class="btn btn-outline-light btn-sm" href="index.php">Home</a>
             <a class="btn btn-outline-light btn-sm" href="myorders.php">My Orders</a>
+            <a class="btn btn-light btn-sm" href="logout.php">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container py-4">
-    <?php if ($errors): ?>
-        <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul></div>
-    <?php endif; ?>
+    <div class="form-section mb-3">
+        <h5>Student Details</h5>
+        <div class="row g-2">
+            <div class="col-md-3"><strong>Name:</strong> <?= e($student['student_name']) ?></div>
+            <div class="col-md-2"><strong>Class:</strong> <?= e((string)$student['class']) ?></div>
+            <div class="col-md-2"><strong>Gender:</strong> <?= e($student['gender']) ?></div>
+            <div class="col-md-2"><strong>Class No:</strong> <?= e((string)$student['class_number']) ?></div>
+            <div class="col-md-3"><strong>Phone:</strong> <?= e($student['phone']) ?></div>
+        </div>
+    </div>
+
+    <?php if ($errors): ?><div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
     <?php if ($success): ?><div class="alert alert-success"><?= e($success) ?></div><?php endif; ?>
 
-    <form method="post" class="form-section">
+    <form method="post" id="orderForm">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-        <div class="row g-3 mb-4">
-            <div class="col-md-4"><label class="form-label">Student Name</label><input type="text" name="student_name" class="form-control" required></div>
-            <div class="col-md-4">
-                <label class="form-label">Student Class</label>
-                <select name="class" class="form-select" required>
-                    <option value="">Select Class</option>
-                    <?php foreach ($classes as $classNumber): ?>
-                        <option value="<?= $classNumber ?>">Class <?= $classNumber ?></option>
+
+        <div class="form-section mb-3">
+            <h5>1️⃣ Text Books (Class <?= e($class) ?> only)</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Book Name</th><th>Price</th><th>Quantity</th><th>Add</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($textbooks as $book): ?>
+                        <tr>
+                            <td><?= e($book['book_name']) ?></td>
+                            <td>₹<?= number_format((float)$book['price'], 2) ?></td>
+                            <td><input type="number" min="0" value="0" class="form-control qty-input" name="text_qty[<?= (int)$book['id'] ?>]" data-price="<?= e((string)$book['price']) ?>"></td>
+                            <td><span class="badge text-bg-success">Textbook</span></td>
+                        </tr>
                     <?php endforeach; ?>
-                </select>
+                    <?php if (!$textbooks): ?><tr><td colspan="4" class="text-center">No textbooks for your class.</td></tr><?php endif; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="col-md-4"><label class="form-label">Phone Number</label><input type="text" name="phone" class="form-control" required></div>
         </div>
 
-        <h5 class="mb-3">Select Class & Book</h5>
-        <div class="accordion" id="classAccordion">
-            <?php foreach ($classes as $index => $classNumber): ?>
-                <?php $classKey = (string)$classNumber; ?>
-                <div class="accordion-item class-card mb-2">
-                    <h2 class="accordion-header" id="heading<?= $classNumber ?>">
-                        <button class="accordion-button <?= $index === 0 ? '' : 'collapsed' ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $classNumber ?>" aria-expanded="<?= $index === 0 ? 'true' : 'false' ?>" aria-controls="collapse<?= $classNumber ?>">
-                            Class <?= $classNumber ?>
-                        </button>
-                    </h2>
-                    <div id="collapse<?= $classNumber ?>" class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>" data-bs-parent="#classAccordion">
-                        <div class="accordion-body">
-                            <?php if (!empty($booksByClass[$classKey])): ?>
-                                <div class="table-responsive">
-                                    <table class="table align-middle mb-0">
-                                        <thead><tr><th>Book Name</th><th>Price</th><th>Quantity</th><th>Book Button</th></tr></thead>
-                                        <tbody>
-                                        <?php foreach ($booksByClass[$classKey] as $book): ?>
-                                            <tr>
-                                                <td><?= e($book['book_name']) ?></td>
-                                                <td>₹<?= number_format((float)$book['price'], 2) ?></td>
-                                                <td width="140"><input type="number" min="1" value="1" name="quantities[<?= (int)$book['id'] ?>]" class="form-control"></td>
-                                                <td>
-                                                    <button type="submit" name="book_id" value="<?= (int)$book['id'] ?>" class="btn btn-madrasa btn-sm">Book</button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            <?php else: ?>
-                                <div class="text-muted">No books available for Class <?= $classNumber ?>.</div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+        <div class="form-section mb-3">
+            <h5>2️⃣ Note Books</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Notebook Type</th><th>Page Count</th><th>Price</th><th>Quantity</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($notebooks as $nb): ?>
+                        <tr>
+                            <td><?= e($nb['notebook_type']) ?></td>
+                            <td><?= (int)$nb['pages'] ?> pages</td>
+                            <td>₹<?= number_format((float)$nb['price'], 2) ?></td>
+                            <td><input type="number" min="0" value="0" class="form-control qty-input" name="note_qty[<?= (int)$nb['id'] ?>]" data-price="<?= e((string)$nb['price']) ?>"></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="form-section mb-3">
+            <h5>Order Summary Before Confirm</h5>
+            <p class="mb-2">Final Total Amount: <strong>₹<span id="liveTotal">0.00</span></strong></p>
+            <?php if ($orderSummary): ?>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($orderSummary as $item): ?>
+                            <tr>
+                                <td><?= e($item['item_name'] . ($item['pages'] ? ' (' . $item['pages'] . ' pages)' : '')) ?></td>
+                                <td><?= e($item['item_type']) ?></td>
+                                <td><?= (int)$item['quantity'] ?></td>
+                                <td>₹<?= number_format((float)$item['price'], 2) ?></td>
+                                <td>₹<?= number_format((float)$item['total'], 2) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
-            <?php endforeach; ?>
+                <p><strong>Final Total: ₹<?= number_format($finalTotal, 2) ?></strong></p>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-madrasa">Confirm Order</button>
         </div>
     </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/script.js"></script>
 </body>
 </html>

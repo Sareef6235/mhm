@@ -1,89 +1,11 @@
-:root {
-    --primary: #0f6d49;
-    --primary-dark: #0a5236;
-    --accent: #e8f5e9;
-    --ink: #1f2937;
-    --muted: #6b7280;
-}
-
-body {
-    background: #f7faf7;
-    color: var(--ink);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.navbar-brand {
-    font-weight: 700;
-}
-
-.bg-madrasa {
-    background: linear-gradient(135deg, var(--primary), #13855c);
-}
-
-.card-soft {
-    border: none;
-    border-radius: 1rem;
-    box-shadow: 0 10px 24px rgba(15, 109, 73, 0.08);
-}
-
-.summary-card {
-    border-left: 4px solid var(--primary);
-}
-
-.table thead {
-    background: var(--accent);
-}
-
-.btn-madrasa {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
-}
-
-.btn-madrasa:hover,
-.btn-madrasa:focus {
-    background: var(--primary-dark);
-    border-color: var(--primary-dark);
-    color: #fff;
-}
-
-.form-section {
-    background: #fff;
-    border-radius: 1rem;
-    padding: 1.25rem;
-    box-shadow: 0 10px 24px rgba(15, 109, 73, 0.08);
-}
-
-.class-card {
-    border: 1px solid #d7ebe0;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 6px 14px rgba(15, 109, 73, 0.08);
-}
-
-.accordion-button {
-    background: #f4fbf6;
-    color: #0d5137;
-    font-weight: 600;
-}
-
-.accordion-button:not(.collapsed) {
-    background: var(--accent);
-    color: var(--primary-dark);
-    box-shadow: none;
-}
-
-.accordion-collapse {
-    transition: all 0.35s ease;
-}
-
-.footer-note {
-    color: var(--muted);
-    font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-    .form-section {
-        padding: 1rem;
-    }
-}
+:root { --primary:#0f6d49; --primary-dark:#0a5236; --accent:#e8f5e9; --ink:#1f2937; }
+body { background:#f6faf7; color:var(--ink); font-family:'Segoe UI',sans-serif; }
+.bg-madrasa { background:linear-gradient(135deg,var(--primary),#13855c); }
+.form-section { background:#fff; border-radius:16px; padding:1.2rem; box-shadow:0 10px 24px rgba(15,109,73,.1); }
+.btn-madrasa { background:var(--primary); border-color:var(--primary); color:#fff; }
+.btn-madrasa:hover { background:var(--primary-dark); border-color:var(--primary-dark); color:#fff; }
+.table thead { background:var(--accent); }
+.card-soft { border:none; border-radius:16px; box-shadow:0 10px 24px rgba(15,109,73,.1); }
+.summary-card { border-left:4px solid var(--primary); }
+.login-page { min-height:100vh; display:flex; align-items:center; }
+@media (max-width:768px){ .form-section{ padding:1rem; } }
