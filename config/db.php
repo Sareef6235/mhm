@@ -15,8 +15,6 @@ $dbName = 'hvernued_range';
 $dbUser = 'hvernued_cpses_hvnqmd5ph8';
 $dbPass = 'Zirect@1618*1##';
 
-$pdo = null;
-$dbWarning = '';
 $dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
 
 try {
@@ -26,14 +24,8 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 } catch (PDOException $e) {
-    // Development fallback to avoid HTTP 500 when MySQL is unavailable in local/container.
-    $sqlitePath = __DIR__ . '/../database/dev.sqlite';
-    $pdo = new PDO('sqlite:' . $sqlitePath, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
-    $dbWarning = 'MySQL connection failed; running on SQLite fallback for local debugging.';
+    http_response_code(500);
+    die('Database connection failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
 }
 
 function e($value): string
@@ -64,58 +56,58 @@ function require_admin(): void
 
 function ensure_tables(PDO $pdo): void
 {
-    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-    $idDef = $driver === 'sqlite' ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
-    $ignoreKeyword = $driver === 'sqlite' ? 'OR IGNORE' : 'IGNORE';
-
     $pdo->exec("CREATE TABLE IF NOT EXISTS admin (
-        id {$idDef},
+        id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS students (
-        id {$idDef},
+        id INT AUTO_INCREMENT PRIMARY KEY,
         student_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         gender VARCHAR(10) NOT NULL,
-        class_number INTEGER NOT NULL,
+        class_number INT NOT NULL,
         created_at DATETIME NOT NULL,
-        UNIQUE (class, gender, class_number)
+        UNIQUE KEY uniq_class_gender_number (class, gender, class_number)
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS textbooks (
-        id {$idDef},
+        id INT AUTO_INCREMENT PRIMARY KEY,
         book_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         price DECIMAL(10,2) NOT NULL
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS notebooks (
-        id {$idDef},
+        id INT AUTO_INCREMENT PRIMARY KEY,
         notebook_type VARCHAR(100) NOT NULL,
-        pages INTEGER NOT NULL,
+        pages INT NOT NULL,
         price DECIMAL(10,2) NOT NULL
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS orders (
-        id {$idDef},
+        id INT AUTO_INCREMENT PRIMARY KEY,
         student_name VARCHAR(150) NOT NULL,
         class VARCHAR(10) NOT NULL,
         gender VARCHAR(10) NOT NULL,
-        class_number INTEGER NOT NULL,
+        class_number INT NOT NULL,
         item_type VARCHAR(20) NOT NULL,
         item_name VARCHAR(150) NOT NULL,
-        pages INTEGER NULL,
+        pages INT NULL,
         price DECIMAL(10,2) NOT NULL,
-        quantity INTEGER NOT NULL,
+        quantity INT NOT NULL,
         total_price DECIMAL(10,2) NOT NULL,
-        order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_class (class),
+        INDEX idx_gender (gender),
+        INDEX idx_item_name (item_name),
+        INDEX idx_order_date (order_date)
     )");
 
     $hash = '$2y$12$k4jxSd9qC9Ct2pAIohB/pegFn1CyiEDMdRMvu/zwfjx0Sti7n/Mge';
-    $stmt = $pdo->prepare("INSERT {$ignoreKeyword} INTO admin (username, password) VALUES (:u, :p)");
+    $stmt = $pdo->prepare('INSERT IGNORE INTO admin (username, password) VALUES (:u, :p)');
     $stmt->execute([':u' => 'admin', ':p' => $hash]);
 
     $countBooks = (int)$pdo->query('SELECT COUNT(*) FROM textbooks')->fetchColumn();

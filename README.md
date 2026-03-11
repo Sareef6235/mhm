@@ -2,7 +2,7 @@
 
 ## Latest Fixes + UI Upgrade
 - Repaired critical pages that caused 500 errors (`order.php`, `admin/orders.php`, `admin/dashboard.php`, `config/db.php`).
-- Added safe DB bootstrap with MySQL-first PDO and local SQLite fallback for debug environment.
+- Added safe DB bootstrap with MySQL-only PDO connection (no SQLite fallback).
 - Kept helper functions available globally: `e()`, `csrf_token()`, `verify_csrf()`, `require_admin()`.
 - Added modern global footer on all pages:
   - Center text: **Design by Muhsin Faizy**
