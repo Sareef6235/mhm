@@ -54,6 +54,20 @@ function require_admin(): void
     }
 }
 
+function column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column');
+    $stmt->execute([':table' => $table, ':column' => $column]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function ensure_column(PDO $pdo, string $table, string $column, string $definition): void
+{
+    if (!column_exists($pdo, $table, $column)) {
+        $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+    }
+}
+
 function ensure_tables(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS admin (
@@ -105,6 +119,25 @@ function ensure_tables(PDO $pdo): void
         INDEX idx_item_name (item_name),
         INDEX idx_order_date (order_date)
     )");
+
+    // Auto-fix older deployments where columns are missing (prevents Unknown column fatal errors).
+    ensure_column($pdo, 'students', 'student_name', "VARCHAR(150) NOT NULL DEFAULT '' AFTER id");
+    ensure_column($pdo, 'students', 'class', "VARCHAR(10) NOT NULL DEFAULT '' AFTER student_name");
+    ensure_column($pdo, 'students', 'gender', "VARCHAR(10) NOT NULL DEFAULT '' AFTER class");
+    ensure_column($pdo, 'students', 'class_number', "INT NOT NULL DEFAULT 0 AFTER gender");
+    ensure_column($pdo, 'students', 'created_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER class_number");
+
+    ensure_column($pdo, 'orders', 'student_name', "VARCHAR(150) NOT NULL DEFAULT '' AFTER id");
+    ensure_column($pdo, 'orders', 'class', "VARCHAR(10) NOT NULL DEFAULT '' AFTER student_name");
+    ensure_column($pdo, 'orders', 'gender', "VARCHAR(10) NOT NULL DEFAULT '' AFTER class");
+    ensure_column($pdo, 'orders', 'class_number', "INT NOT NULL DEFAULT 0 AFTER gender");
+    ensure_column($pdo, 'orders', 'item_type', "VARCHAR(20) NOT NULL DEFAULT 'textbook' AFTER class_number");
+    ensure_column($pdo, 'orders', 'item_name', "VARCHAR(150) NOT NULL DEFAULT '' AFTER item_type");
+    ensure_column($pdo, 'orders', 'pages', "INT NULL AFTER item_name");
+    ensure_column($pdo, 'orders', 'price', "DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER pages");
+    ensure_column($pdo, 'orders', 'quantity', "INT NOT NULL DEFAULT 0 AFTER price");
+    ensure_column($pdo, 'orders', 'total_price', "DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER quantity");
+    ensure_column($pdo, 'orders', 'order_date', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER total_price");
 
     $hash = '$2y$12$k4jxSd9qC9Ct2pAIohB/pegFn1CyiEDMdRMvu/zwfjx0Sti7n/Mge';
     $stmt = $pdo->prepare('INSERT IGNORE INTO admin (username, password) VALUES (:u, :p)');
