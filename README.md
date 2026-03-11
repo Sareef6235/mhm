@@ -1,42 +1,50 @@
-# Modern Madrasa Book Ordering Web Application (PHP + MySQL)
+# Madrasa Book Ordering Web Application (PHP + MySQL)
 
-## Core Update (No Student Login)
-- Students now open the site and directly access the order form (`public_html/order.php`).
-- Student details are filled inside the order form itself.
-- Unique Class Number logic is still enforced: `Class + Gender + Class Number` must be unique.
+## ✅ Fixed & Upgraded
+- Repaired core pages that previously caused HTTP 500 (`order.php`, `admin/orders.php`, `admin/dashboard.php`, `config/db.php`).
+- Added robust PDO setup, helper functions (`e`, `csrf_token`, `verify_csrf`), and automatic table checks to avoid crash on missing tables.
+- Enabled development error display for faster debugging.
 
-## Features
-- Direct student order form fields:
-  - Student Name
-  - Class (1-12)
-  - Gender (Male/Female)
-  - Class Number
-  - Phone
-- Class-based textbook visibility (only selected class books are shown).
-- Separate sections for Textbooks and Notebooks.
-- Live total amount calculation using JavaScript.
-- Order summary before confirmation.
-- Admin dashboard with analytics cards + Chart.js charts.
-- Admin management for Textbooks and Notebooks (Add/Edit/Delete).
-- Admin filters by Class, Gender, Book Name, Date + CSV export.
+## Student Flow (No Traditional Login)
+1. Students open `public_html/index.php`.
+2. Fill Student Entry Form:
+   - Student Name
+   - Class (1-12)
+3. They are redirected to order page for that class.
 
-## Default Admin
-- Username: `admin`
-- Password: `mhnu1234`
+## Order Page Features
+- Shows only textbooks of selected class.
+- Gender + Class Number fields for unique numbering logic.
+- Rule: `Class + Gender + Class Number` must be unique.
+- Two order sections:
+  - Text Books (`textbooks` table)
+  - Note Books (`notebooks` table)
+- Live total auto-calculation with JavaScript.
+- Order review summary before confirm.
 
-## Main Pages
-- `public_html/order.php` (direct student ordering page)
-- `public_html/myorders.php` (order tracking)
-- `admin/login.php`
-- `admin/dashboard.php`
-- `admin/textbooks.php`
-- `admin/notebooks.php`
-- `admin/orders.php`
-- `admin/export_orders.php`
+## Admin Panel
+- Admin Login: `admin / mhnu1234`
+- Dashboard cards:
+  - Total Students
+  - Total Orders
+  - Total Books Ordered
+  - Total Notebooks Ordered
+  - Total Amount
+- Analytics:
+  - Most ordered books
+  - Orders per class
+  - Male/Female order split
+- Orders page supports filters:
+  - Class
+  - Gender
+  - Book Name
+  - Date
+- CSV export available.
 
 ## cPanel Deployment
-1. Upload files in File Manager (preserve folders).
+1. Upload project into `public_html` (keep folders).
 2. Create MySQL DB/user.
-3. Import `database/madrasa_books.sql` via phpMyAdmin.
-4. Update `config/db.php` credentials if needed.
-5. Open `public_html/order.php` for students and `admin/login.php` for admin.
+3. Import `database/madrasa_books.sql`.
+4. Update DB credentials in `config/db.php`.
+5. Open student entry: `public_html/index.php`.
+

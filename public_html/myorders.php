@@ -1,15 +1,20 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 
+$studentName = trim($_GET['student_name'] ?? '');
 $class = trim($_GET['class'] ?? '');
 $gender = trim($_GET['gender'] ?? '');
 $classNumber = trim($_GET['class_number'] ?? '');
-$phone = trim($_GET['phone'] ?? '');
 $orders = [];
 
-if ($class !== '' && $gender !== '' && $classNumber !== '' && $phone !== '') {
-    $stmt = $pdo->prepare('SELECT item_type, item_name, pages, quantity, price, total_price, order_date FROM orders WHERE class = :class AND gender = :gender AND class_number = :class_number AND phone = :phone ORDER BY order_date DESC, id DESC');
-    $stmt->execute([':class' => $class, ':gender' => $gender, ':class_number' => $classNumber, ':phone' => $phone]);
+if ($studentName !== '' && $class !== '' && $gender !== '' && $classNumber !== '') {
+    $stmt = $pdo->prepare('SELECT item_type, item_name, pages, quantity, price, total_price, order_date FROM orders WHERE student_name = :student_name AND class = :class AND gender = :gender AND class_number = :class_number ORDER BY order_date DESC, id DESC');
+    $stmt->execute([
+        ':student_name' => $studentName,
+        ':class' => $class,
+        ':gender' => $gender,
+        ':class_number' => $classNumber,
+    ]);
     $orders = $stmt->fetchAll();
 }
 ?>
@@ -21,15 +26,15 @@ if ($class !== '' && $gender !== '' && $classNumber !== '' && $phone !== '') {
 <link rel="stylesheet" href="../assets/style.css"></head>
 <body>
 <nav class="navbar navbar-expand-lg bg-madrasa navbar-dark"><div class="container">
-<a class="navbar-brand" href="order.php">Madrasa Book Order</a>
-<div class="ms-auto d-flex gap-2"><a class="btn btn-outline-light btn-sm" href="order.php">Order Form</a><a class="btn btn-light btn-sm" href="../admin/login.php">Admin</a></div>
+<a class="navbar-brand" href="index.php">Madrasa Book Order</a>
+<div class="ms-auto d-flex gap-2"><a class="btn btn-outline-light btn-sm" href="order.php">Order</a><a class="btn btn-light btn-sm" href="../admin/login.php">Admin</a></div>
 </div></nav>
 <div class="container py-4"><div class="form-section mb-3"><h5>Track My Orders</h5>
 <form method="get" class="row g-2">
+<div class="col-md-3"><input name="student_name" class="form-control" placeholder="Student Name" value="<?=e($studentName)?>" required></div>
 <div class="col-md-2"><select name="class" class="form-select" required><option value="">Class</option><?php for($i=1;$i<=12;$i++):?><option value="<?=$i?>" <?=$class===(string)$i?'selected':''?>><?=$i?></option><?php endfor;?></select></div>
 <div class="col-md-2"><select name="gender" class="form-select" required><option value="">Gender</option><option value="Male" <?=$gender==='Male'?'selected':''?>>Male</option><option value="Female" <?=$gender==='Female'?'selected':''?>>Female</option></select></div>
 <div class="col-md-2"><input name="class_number" class="form-control" placeholder="Class No" value="<?=e($classNumber)?>" required></div>
-<div class="col-md-3"><input name="phone" class="form-control" placeholder="Phone" value="<?=e($phone)?>" required></div>
 <div class="col-md-3"><button class="btn btn-madrasa">Search</button></div>
 </form></div>
 <div class="form-section"><div class="table-responsive"><table class="table table-striped align-middle">

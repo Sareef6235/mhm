@@ -1,3 +1,3 @@
 <?php
-header('Location: order.php');
+header('Location: index.php');
 exit;
