@@ -2,9 +2,15 @@
 session_start();
 require_once __DIR__ . '/controllers/AppController.php';
 
-$page = $_GET['page'] ?? 'home';
+$page = $_GET['page'] ?? (is_logged_in_student() ? 'home' : 'login');
 
 switch ($page) {
+    case 'login':
+        AppController::login();
+        break;
+    case 'logout':
+        AppController::logout();
+        break;
     case 'tracker':
         AppController::tracker();
         break;
