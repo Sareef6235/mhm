@@ -127,6 +127,11 @@ function ensure_tables(PDO $pdo): void
     ensure_column($pdo, 'students', 'class_number', "INT NOT NULL DEFAULT 0 AFTER gender");
     ensure_column($pdo, 'students', 'created_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER class_number");
 
+    // Compatibility with older code that used class_id
+    ensure_column($pdo, 'students', 'class_id', "INT NULL AFTER class");
+    ensure_column($pdo, 'orders', 'class_id', "INT NULL AFTER class");
+    ensure_column($pdo, 'textbooks', 'class_id', "INT NULL AFTER class");
+
     ensure_column($pdo, 'orders', 'student_name', "VARCHAR(150) NOT NULL DEFAULT '' AFTER id");
     ensure_column($pdo, 'orders', 'class', "VARCHAR(10) NOT NULL DEFAULT '' AFTER student_name");
     ensure_column($pdo, 'orders', 'gender', "VARCHAR(10) NOT NULL DEFAULT '' AFTER class");

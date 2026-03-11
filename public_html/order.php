@@ -12,8 +12,13 @@ if ($studentName === '' || $selectedClass === '' || !in_array((int)$selectedClas
     exit;
 }
 
-$textStmt = $pdo->prepare('SELECT id, book_name, price FROM textbooks WHERE class = :class ORDER BY book_name');
-$textStmt->execute([':class' => $selectedClass]);
+$textbookClassColumn = column_exists($pdo, 'textbooks', 'class') ? 'class' : 'class_id';
+$studentClassColumn = column_exists($pdo, 'students', 'class') ? 'class' : 'class_id';
+$orderClassColumn = column_exists($pdo, 'orders', 'class') ? 'class' : 'class_id';
+$classParamValue = $textbookClassColumn === 'class_id' ? (int)$selectedClass : $selectedClass;
+
+$textStmt = $pdo->prepare("SELECT id, book_name, price FROM textbooks WHERE {$textbookClassColumn} = :class_value ORDER BY book_name");
+$textStmt->execute([':class_value' => $classParamValue]);
 $textbooks = $textStmt->fetchAll();
 $notebooks = $pdo->query('SELECT id, notebook_type, pages, price FROM notebooks ORDER BY pages')->fetchAll();
 
@@ -80,9 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['review_order']) || i
     }
 
     if (!$errors && isset($_POST['confirm_order'])) {
-        $existsStmt = $pdo->prepare('SELECT id FROM students WHERE class = :class AND gender = :gender AND class_number = :class_number LIMIT 1');
+        $existsStmt = $pdo->prepare("SELECT id FROM students WHERE {$studentClassColumn} = :class_value AND gender = :gender AND class_number = :class_number LIMIT 1");
         $existsStmt->execute([
-            ':class' => $selectedClass,
+            ':class_value' => ($studentClassColumn === 'class_id' ? (int)$selectedClass : $selectedClass),
             ':gender' => $gender,
             ':class_number' => $classNumber,
         ]);
@@ -91,14 +96,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['review_order']) || i
             $errors[] = "This class number already exists for {$gender} students in this class.";
             $showSummary = true;
         } else {
-            $insertStudent = $pdo->prepare('INSERT INTO students (student_name, class, gender, class_number, created_at) VALUES (:student_name, :class, :gender, :class_number, NOW())');
-            $insertOrder = $pdo->prepare('INSERT INTO orders (student_name, class, gender, class_number, item_type, item_name, pages, price, quantity, total_price, order_date) VALUES (:student_name, :class, :gender, :class_number, :item_type, :item_name, :pages, :price, :quantity, :total_price, NOW())');
+            $insertStudent = $pdo->prepare("INSERT INTO students (student_name, {$studentClassColumn}, gender, class_number, created_at) VALUES (:student_name, :class_value, :gender, :class_number, NOW())");
+            $insertOrder = $pdo->prepare("INSERT INTO orders (student_name, {$orderClassColumn}, gender, class_number, item_type, item_name, pages, price, quantity, total_price, order_date) VALUES (:student_name, :class_value, :gender, :class_number, :item_type, :item_name, :pages, :price, :quantity, :total_price, NOW())");
 
             $pdo->beginTransaction();
             try {
                 $insertStudent->execute([
                     ':student_name' => $studentName,
-                    ':class' => $selectedClass,
+                    ':class_value' => ($studentClassColumn === 'class_id' ? (int)$selectedClass : $selectedClass),
                     ':gender' => $gender,
                     ':class_number' => $classNumber,
                 ]);
@@ -106,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['review_order']) || i
                 foreach ($orderSummary as $item) {
                     $insertOrder->execute([
                         ':student_name' => $studentName,
-                        ':class' => $selectedClass,
+                        ':class_value' => ($orderClassColumn === 'class_id' ? (int)$selectedClass : $selectedClass),
                         ':gender' => $gender,
                         ':class_number' => $classNumber,
                         ':item_type' => $item['item_type'],
