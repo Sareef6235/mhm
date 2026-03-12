@@ -86,10 +86,21 @@ if ($action === 'import_students' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_to('index.php');
 }
 
+if ($action === 'export_records') {
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="admin-prayer-history.csv"');
+    echo PrayerRecordModel::exportCsv();
+    exit;
+}
+
 $classes = ClassModel::all();
 $students = StudentModel::all();
 $records = PrayerRecordModel::history();
 $dailyLeaders = PrayerRecordModel::leaderboard('day');
+$weeklyLeaders = PrayerRecordModel::leaderboard('week');
+$monthlyLeaders = PrayerRecordModel::leaderboard('month');
+$stats = PrayerRecordModel::adminStats();
+$classStats = PrayerRecordModel::classPerformance('month');
 $importResult = $_SESSION['import_result'] ?? null;
 unset($_SESSION['import_result']);
 ?>
@@ -102,13 +113,20 @@ unset($_SESSION['import_result']);
 </head>
 <body class="bg-slate-100 p-4">
 <div class="max-w-6xl mx-auto space-y-4">
-  <div class="bg-white rounded-2xl shadow-sm p-4 flex justify-between"><h1 class="font-bold">Admin Panel</h1><a href="?action=logout" class="text-red-600 text-sm">Logout</a></div>
+  <div class="bg-white rounded-2xl shadow-sm p-4 flex justify-between items-center"><h1 class="font-bold">Admin Panel</h1><div class="space-x-3"><a href="?action=export_records" class="text-emerald-700 text-sm">Export Data</a><a href="?action=logout" class="text-red-600 text-sm">Logout</a></div></div>
 
   <?php if ($importResult): ?>
   <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-sm">
     Imported: <?= (int)$importResult['inserted'] ?>, Skipped: <?= (int)$importResult['skipped'] ?>
   </div>
   <?php endif; ?>
+
+  <section class="grid md:grid-cols-4 gap-3">
+    <div class="bg-white rounded-2xl shadow-sm p-4"><p class="text-xs text-slate-500">Students</p><p class="text-xl font-bold"><?= (int)$stats['total_students'] ?></p></div>
+    <div class="bg-white rounded-2xl shadow-sm p-4"><p class="text-xs text-slate-500">Classes</p><p class="text-xl font-bold"><?= (int)$stats['total_classes'] ?></p></div>
+    <div class="bg-white rounded-2xl shadow-sm p-4"><p class="text-xs text-slate-500">Prayer Records</p><p class="text-xl font-bold"><?= (int)$stats['total_records'] ?></p></div>
+    <div class="bg-white rounded-2xl shadow-sm p-4"><p class="text-xs text-slate-500">Today Points</p><p class="text-xl font-bold"><?= (int)$stats['today_points'] ?></p></div>
+  </section>
 
   <div class="grid md:grid-cols-3 gap-4">
     <form method="POST" action="?action=add_class" class="bg-white rounded-2xl shadow-sm p-4 space-y-2">
@@ -162,13 +180,27 @@ unset($_SESSION['import_result']);
     </table>
   </section>
 
-  <section class="grid md:grid-cols-2 gap-4">
+  <section class="grid md:grid-cols-3 gap-4" id="leaderboards">
     <div class="bg-white rounded-2xl shadow-sm p-4">
-      <h2 class="font-semibold mb-2">Leaderboard (Today)</h2>
-      <?php foreach ($dailyLeaders as $i => $l): ?>
-        <div class="text-sm p-2 rounded-xl <?= $i===0?'bg-amber-50':'bg-slate-50' ?> mb-2"><?= ['🥇','🥈','🥉'][$i] ?? '•' ?> <?= h($l['name']) ?> - <?= (int)$l['points'] ?> pt</div>
-      <?php endforeach; ?>
-      <?php if (!$dailyLeaders): ?><p class="text-xs text-slate-500">No leaderboard data.</p><?php endif; ?>
+      <h2 class="font-semibold mb-2">ഇന്നത്തെ ടോപ്പർ</h2>
+      <?php foreach ($dailyLeaders as $i => $l): ?><div class="text-sm p-2 rounded-xl <?= $i===0?'bg-amber-50':'bg-slate-50' ?> mb-2"><?= ['🥇','🥈','🥉'][$i] ?? '•' ?> <?= h($l['name']) ?> - <?= (int)$l['points'] ?> pt</div><?php endforeach; ?>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-4">
+      <h2 class="font-semibold mb-2">ആഴ്ചയിലെ ടോപ്പർ</h2>
+      <?php foreach ($weeklyLeaders as $i => $l): ?><div class="text-sm p-2 rounded-xl <?= $i===0?'bg-amber-50':'bg-slate-50' ?> mb-2"><?= ['🥇','🥈','🥉'][$i] ?? '•' ?> <?= h($l['name']) ?> - <?= (int)$l['points'] ?> pt</div><?php endforeach; ?>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-4">
+      <h2 class="font-semibold mb-2">മാസത്തിലെ ടോപ്പർ</h2>
+      <?php foreach ($monthlyLeaders as $i => $l): ?><div class="text-sm p-2 rounded-xl <?= $i===0?'bg-amber-50':'bg-slate-50' ?> mb-2"><?= ['🥇','🥈','🥉'][$i] ?? '•' ?> <?= h($l['name']) ?> - <?= (int)$l['points'] ?> pt</div><?php endforeach; ?>
+    </div>
+  </section>
+
+  <section class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-2xl shadow-sm p-4 overflow-auto">
+      <h2 class="font-semibold mb-2">Class Performance (Monthly)</h2>
+      <table class="w-full text-xs"><thead><tr><th class="text-left">Class</th><th>Students</th><th>Points</th></tr></thead><tbody>
+      <?php foreach ($classStats as $cs): ?><tr class="border-t"><td><?= h($cs['class_name']) ?></td><td><?= (int)$cs['student_count'] ?></td><td><?= (int)$cs['points'] ?></td></tr><?php endforeach; ?>
+      </tbody></table>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm p-4 overflow-auto">
@@ -179,5 +211,10 @@ unset($_SESSION['import_result']);
     </div>
   </section>
 </div>
+<script>
+setInterval(() => {
+  window.location.reload();
+}, 120000);
+</script>
 </body>
 </html>

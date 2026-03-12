@@ -4,8 +4,12 @@
 </header>
 
 <section class="bg-white rounded-2xl shadow-sm p-4 text-sm">
-  <p><span class="text-slate-500">Student:</span> <strong><?= h($student['name']) ?></strong></p>
-  <p><span class="text-slate-500">Class:</span> <?= h($student['class_name']) ?></p>
+  <?php if ($student): ?>
+    <p><span class="text-slate-500">Student:</span> <strong><?= h($student['name']) ?></strong></p>
+    <p><span class="text-slate-500">Class:</span> <?= h($student['class_name']) ?></p>
+  <?php else: ?>
+    <p class="text-slate-500">No student selected.</p>
+  <?php endif; ?>
   <p><span class="text-slate-500">Today:</span> <?= date('Y-m-d') ?></p>
 </section>
 
@@ -43,4 +47,3 @@
 </section>
 <?php endforeach; ?>
 
-<footer class="text-center text-xs text-slate-500 py-4">© 2026 SKJM Vengara</footer>

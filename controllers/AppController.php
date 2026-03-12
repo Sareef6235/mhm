@@ -6,57 +6,64 @@ require_once __DIR__ . '/../models/PrayerRecordModel.php';
 
 class AppController
 {
-    public static function login(): void
+    private static function resolveStudent(): ?array
     {
-        if (is_logged_in_student()) {
-            redirect_to(app_url('index.php?page=home'));
+        if (is_logged_in_student() && !empty($_SESSION['student'])) {
+            return $_SESSION['student'];
         }
 
-        $error = null;
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $phone = preg_replace('/\D+/', '', $_POST['phone'] ?? '');
-            $password = trim($_POST['password'] ?? '');
-            $dob = $_POST['dob'] ?? '';
-            $student = StudentModel::authenticate($phone, $password, $dob);
-
+        $studentId = (int)($_GET['student_id'] ?? 0);
+        if ($studentId > 0) {
+            $student = StudentModel::find($studentId);
             if ($student) {
-                $_SESSION['student_id'] = (int)$student['id'];
-                $_SESSION['student'] = [
+                return [
                     'id' => (int)$student['id'],
                     'name' => $student['name'],
                     'class_id' => (int)$student['class_id'],
                     'class_name' => $student['class_name'],
                     'phone' => $student['phone'],
                 ];
-                redirect_to(app_url('index.php?page=home'));
             }
-
-            $error = 'Invalid login. Check phone, password, DOB.';
         }
 
-        view('auth/login', compact('error'));
+        $allStudents = StudentModel::all();
+        if (empty($allStudents)) {
+            return null;
+        }
+
+        $first = $allStudents[0];
+        return [
+            'id' => (int)$first['id'],
+            'name' => $first['name'],
+            'class_id' => (int)$first['class_id'],
+            'class_name' => $first['class_name'],
+            'phone' => $first['phone'],
+        ];
+    }
+
+    public static function login(): void
+    {
+        redirect_to(app_url('index.php?page=home'));
     }
 
     public static function logout(): void
     {
         unset($_SESSION['student_id'], $_SESSION['student']);
-        redirect_to(app_url('index.php?page=login'));
+        redirect_to(app_url('index.php?page=home'));
     }
 
     public static function requireStudent(): void
     {
-        if (!is_logged_in_student()) {
-            redirect_to(app_url('index.php?page=login'));
-        }
+        // Login section removed as requested; app stays accessible without student login.
     }
 
     public static function home(): void
     {
         self::requireStudent();
-        $student = student_session();
+        $student = self::resolveStudent();
         $classId = isset($_GET['class_id']) ? (int)$_GET['class_id'] : null;
         $classes = ClassModel::all();
-        $today = PrayerRecordModel::todayForStudent((int)$student['id']);
+        $today = $student ? PrayerRecordModel::todayForStudent((int)$student['id']) : null;
         $daily = PrayerRecordModel::leaderboard('day', $classId);
         $week = PrayerRecordModel::leaderboard('week', $classId);
         $month = PrayerRecordModel::leaderboard('month', $classId);
@@ -90,6 +97,7 @@ class AppController
 
         $message = null;
         $error = null;
+        $latest = null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payload = [
@@ -105,13 +113,14 @@ class AppController
 
             if (PrayerRecordModel::saveDaily($payload)) {
                 $message = 'Record saved successfully.';
+                $latest = PrayerRecordModel::todayForStudent($studentId);
             } else {
                 $error = 'Duplicate entry: this student already has a record for selected date.';
             }
         }
 
         view('layout/header', ['title' => 'Prayer Recording']);
-        view('tracker/record', compact('student', 'message', 'error'));
+        view('tracker/record', compact('student', 'message', 'error', 'latest'));
         view('layout/footer');
     }
 
@@ -144,7 +153,7 @@ class AppController
     public static function profile(): void
     {
         self::requireStudent();
-        $student = student_session();
+        $student = self::resolveStudent();
         view('layout/header', ['title' => 'Profile']);
         view('profile/index', compact('student'));
         view('layout/footer');

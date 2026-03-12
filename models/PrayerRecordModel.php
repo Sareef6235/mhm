@@ -3,9 +3,14 @@ require_once __DIR__ . '/../core/Database.php';
 
 class PrayerRecordModel
 {
+    public static function calculatePoints(array $payload): int
+    {
+        return (int)$payload['subah'] + (int)$payload['dhuhr'] + (int)$payload['asr'] + (int)$payload['maghrib'] + (int)$payload['isha'];
+    }
+
     public static function saveDaily(array $payload): bool
     {
-        $points = (int)$payload['subah'] + (int)$payload['dhuhr'] + (int)$payload['asr'] + (int)$payload['maghrib'] + (int)$payload['isha'];
+        $points = self::calculatePoints($payload);
 
         $sql = 'INSERT INTO prayer_records
                 (student_id, date, subah, dhuhr, asr, maghrib, isha, salawat, points)
@@ -104,5 +109,41 @@ class PrayerRecordModel
         }
         rewind($fh);
         return stream_get_contents($fh);
+    }
+
+    public static function adminStats(): array
+    {
+        $db = Database::connection();
+        $totalStudents = (int)$db->query('SELECT COUNT(*) FROM students')->fetchColumn();
+        $totalClasses = (int)$db->query('SELECT COUNT(*) FROM classes')->fetchColumn();
+        $totalRecords = (int)$db->query('SELECT COUNT(*) FROM prayer_records')->fetchColumn();
+        $todayPoints = (int)$db->query('SELECT COALESCE(SUM(points), 0) FROM prayer_records WHERE date = CURDATE()')->fetchColumn();
+
+        return [
+            'total_students' => $totalStudents,
+            'total_classes' => $totalClasses,
+            'total_records' => $totalRecords,
+            'today_points' => $todayPoints,
+        ];
+    }
+
+    public static function classPerformance(string $range = 'month'): array
+    {
+        $dateClause = 'pr.date = CURDATE()';
+        if ($range === 'week') {
+            $dateClause = 'YEARWEEK(pr.date, 1) = YEARWEEK(CURDATE(), 1)';
+        } elseif ($range === 'month') {
+            $dateClause = 'MONTH(pr.date) = MONTH(CURDATE()) AND YEAR(pr.date) = YEAR(CURDATE())';
+        }
+
+        $sql = "SELECT c.class_name, COALESCE(SUM(pr.points), 0) AS points, COUNT(DISTINCT s.id) AS student_count
+                FROM classes c
+                LEFT JOIN students s ON s.class_id = c.id
+                LEFT JOIN prayer_records pr ON pr.student_id = s.id AND {$dateClause}
+                GROUP BY c.id
+                ORDER BY points DESC, c.id ASC";
+
+        $stmt = Database::connection()->query($sql);
+        return $stmt->fetchAll();
     }
 }
