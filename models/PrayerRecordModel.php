@@ -13,13 +13,14 @@ class PrayerRecordModel
         $points = self::calculatePoints($payload);
 
         $sql = 'INSERT INTO prayer_records
-                (student_id, date, subah, dhuhr, asr, maghrib, isha, salawat, points)
-                VALUES (:student_id, :date, :subah, :dhuhr, :asr, :maghrib, :isha, :salawat, :points)';
+                (student_id, class_id, date, subah, dhuhr, asr, maghrib, isha, salawat, total_points)
+                VALUES (:student_id, :class_id, :date, :subah, :dhuhr, :asr, :maghrib, :isha, :salawat, :total_points)';
 
         try {
             $stmt = Database::connection()->prepare($sql);
             return $stmt->execute([
                 'student_id' => $payload['student_id'],
+                'class_id' => $payload['class_id'],
                 'date' => $payload['date'],
                 'subah' => $payload['subah'],
                 'dhuhr' => $payload['dhuhr'],
@@ -27,7 +28,7 @@ class PrayerRecordModel
                 'maghrib' => $payload['maghrib'],
                 'isha' => $payload['isha'],
                 'salawat' => $payload['salawat'],
-                'points' => $points,
+                'total_points' => $points,
             ]);
         } catch (PDOException $e) {
             if ((int)($e->errorInfo[1] ?? 0) === 1062) {
@@ -39,15 +40,15 @@ class PrayerRecordModel
 
     public static function history(array $filters = []): array
     {
-        $sql = 'SELECT pr.*, s.name AS student_name, s.class_id, c.class_name
+        $sql = 'SELECT pr.*, s.name AS student_name, c.class_name
                 FROM prayer_records pr
                 JOIN students s ON s.id = pr.student_id
-                JOIN classes c ON c.id = s.class_id
+                JOIN classes c ON c.id = pr.class_id
                 WHERE 1=1';
         $params = [];
 
         if (!empty($filters['class_id'])) {
-            $sql .= ' AND s.class_id = :class_id';
+            $sql .= ' AND pr.class_id = :class_id';
             $params['class_id'] = $filters['class_id'];
         }
         if (!empty($filters['date'])) {
@@ -59,7 +60,7 @@ class PrayerRecordModel
             $params['student_id'] = $filters['student_id'];
         }
 
-        $sql .= ' ORDER BY pr.date DESC, pr.points DESC';
+        $sql .= ' ORDER BY pr.date DESC, pr.total_points DESC';
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -74,14 +75,14 @@ class PrayerRecordModel
             $dateClause = 'MONTH(pr.date) = MONTH(CURDATE()) AND YEAR(pr.date) = YEAR(CURDATE())';
         }
 
-        $sql = "SELECT s.id, s.name, c.class_name, SUM(pr.points) AS points, SUM(pr.salawat) AS salawat
+        $sql = "SELECT s.id, s.name, c.class_name, SUM(pr.total_points) AS points, SUM(pr.salawat) AS salawat
                 FROM prayer_records pr
                 JOIN students s ON s.id = pr.student_id
-                JOIN classes c ON c.id = s.class_id
+                JOIN classes c ON c.id = pr.class_id
                 WHERE {$dateClause}";
         $params = [];
         if ($classId) {
-            $sql .= ' AND s.class_id = :class_id';
+            $sql .= ' AND pr.class_id = :class_id';
             $params['class_id'] = $classId;
         }
         $sql .= ' GROUP BY pr.student_id ORDER BY points DESC, salawat DESC LIMIT 3';
@@ -105,7 +106,7 @@ class PrayerRecordModel
         $fh = fopen('php://temp', 'r+');
         fputcsv($fh, ['Student', 'Class', 'Date', 'Points', 'Salawat', 'Subah', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']);
         foreach ($rows as $r) {
-            fputcsv($fh, [$r['student_name'], $r['class_name'], $r['date'], $r['points'], $r['salawat'], $r['subah'], $r['dhuhr'], $r['asr'], $r['maghrib'], $r['isha']]);
+            fputcsv($fh, [$r['student_name'], $r['class_name'], $r['date'], $r['total_points'], $r['salawat'], $r['subah'], $r['dhuhr'], $r['asr'], $r['maghrib'], $r['isha']]);
         }
         rewind($fh);
         return stream_get_contents($fh);
@@ -114,36 +115,11 @@ class PrayerRecordModel
     public static function adminStats(): array
     {
         $db = Database::connection();
-        $totalStudents = (int)$db->query('SELECT COUNT(*) FROM students')->fetchColumn();
-        $totalClasses = (int)$db->query('SELECT COUNT(*) FROM classes')->fetchColumn();
-        $totalRecords = (int)$db->query('SELECT COUNT(*) FROM prayer_records')->fetchColumn();
-        $todayPoints = (int)$db->query('SELECT COALESCE(SUM(points), 0) FROM prayer_records WHERE date = CURDATE()')->fetchColumn();
-
         return [
-            'total_students' => $totalStudents,
-            'total_classes' => $totalClasses,
-            'total_records' => $totalRecords,
-            'today_points' => $todayPoints,
+            'total_students' => (int)$db->query('SELECT COUNT(*) FROM students')->fetchColumn(),
+            'total_classes' => (int)$db->query('SELECT COUNT(*) FROM classes')->fetchColumn(),
+            'total_records' => (int)$db->query('SELECT COUNT(*) FROM prayer_records')->fetchColumn(),
+            'today_points' => (int)$db->query('SELECT COALESCE(SUM(total_points), 0) FROM prayer_records WHERE date = CURDATE()')->fetchColumn(),
         ];
-    }
-
-    public static function classPerformance(string $range = 'month'): array
-    {
-        $dateClause = 'pr.date = CURDATE()';
-        if ($range === 'week') {
-            $dateClause = 'YEARWEEK(pr.date, 1) = YEARWEEK(CURDATE(), 1)';
-        } elseif ($range === 'month') {
-            $dateClause = 'MONTH(pr.date) = MONTH(CURDATE()) AND YEAR(pr.date) = YEAR(CURDATE())';
-        }
-
-        $sql = "SELECT c.class_name, COALESCE(SUM(pr.points), 0) AS points, COUNT(DISTINCT s.id) AS student_count
-                FROM classes c
-                LEFT JOIN students s ON s.class_id = c.id
-                LEFT JOIN prayer_records pr ON pr.student_id = s.id AND {$dateClause}
-                GROUP BY c.id
-                ORDER BY points DESC, c.id ASC";
-
-        $stmt = Database::connection()->query($sql);
-        return $stmt->fetchAll();
     }
 }

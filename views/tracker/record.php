@@ -9,7 +9,13 @@
 <form method="POST" class="bg-white rounded-2xl shadow-sm p-4 space-y-3 text-sm">
   <label class="block">Date<input type="date" name="date" value="<?= date('Y-m-d') ?>" required class="w-full border rounded-xl p-2"></label>
   <?php foreach (['subah'=>'Subah','dhuhr'=>'Dhuhr','asr'=>'Asr','maghrib'=>'Maghrib','isha'=>'Isha'] as $k=>$label): ?>
-    <label class="flex items-center justify-between rounded-xl bg-slate-50 p-2"><span><?= $label ?></span><input type="checkbox" name="<?= $k ?>" value="1"></label>
+    <label class="block rounded-xl bg-slate-50 p-2">
+      <span class="font-medium"><?= $label ?></span>
+      <select name="<?= $k ?>" class="w-full mt-1 border rounded-lg p-2">
+        <option value="missed">Missed</option>
+        <option value="completed">Completed</option>
+      </select>
+    </label>
   <?php endforeach; ?>
   <label class="block">Salawat<input type="number" name="salawat" min="0" value="0" class="w-full border rounded-xl p-2"></label>
   <button class="w-full rounded-xl bg-emerald-600 text-white p-2">Save</button>
