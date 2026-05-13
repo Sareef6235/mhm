@@ -22,7 +22,7 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 		<header class="agum-topbar">
 			<button class="agum-menu-toggle" type="button">☰</button>
 			<div><h1><?php esc_html_e( 'AMIA Gallery User Manager Pro', 'amia-gallery-user-manager' ); ?></h1><p><?php esc_html_e( 'Secure, fast and premium user operations.', 'amia-gallery-user-manager' ); ?></p></div>
-			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, email, phone, admission no"><span class="agum-bell">🔔</span><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
+			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, email, phone, admission no"><div class="agum-notification-center"><button type="button" class="agum-bell" aria-expanded="false" aria-label="Notifications">🔔<span class="agum-notification-count">0</span></button><div class="agum-notification-dropdown" role="region" aria-label="Notification history"><div class="agum-notification-head"><strong>Notifications</strong><button type="button" class="agum-mark-notifications-read">Mark all read</button></div><div class="agum-notifications"><div class="agum-notification-empty">Loading notifications…</div></div></div></div><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
 		</header>
 
 		<?php $agum_error = get_transient( 'agum_form_error_' . get_current_user_id() ); if ( $agum_error ) : delete_transient( 'agum_form_error_' . get_current_user_id() ); ?>
@@ -39,6 +39,7 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 
 		<section class="agum-card"><div class="agum-section-head"><h2>Role Overview</h2><span class="agum-pill">Role filters & permissions</span></div><div class="agum-role-grid"><div class="agum-role-card agum-role-student"><strong>Students</strong><span><?php echo esc_html( $stats['students'] ); ?> users</span><p>Subscriber access</p></div><div class="agum-role-card agum-role-ustad"><strong>Ustads</strong><span><?php echo esc_html( $stats['ustads'] ); ?> users</span><p>Editor access</p></div><div class="agum-role-card agum-role-admin"><strong>Admins</strong><span>Administrator</span><p>Management access</p></div><div class="agum-role-card agum-role-superadmin"><strong>Superadmins</strong><span>Administrator</span><p>Full dashboard access</p></div></div></section>
 		<section class="agum-card agum-welcome"><h2>Welcome back</h2><p>Run imports, upload mapped photos, generate OTPs, and monitor security logs from a single modern dashboard.</p><div class="agum-actions"><a class="agum-btn" href="<?php echo agum_admin_url( 'agum-users' ); ?>">Manage Users</a><a class="agum-btn agum-btn-ghost" href="<?php echo agum_admin_url( 'agum-csv' ); ?>">Import CSV</a></div></section>
+		<section class="agum-card agum-dashboard-notification"><div><span class="agum-pill">Live notifications</span><h2>Realtime activity feed</h2><p>New users, CSV imports, image uploads, role changes, and errors appear instantly in the notification bell and toast stack.</p></div><div class="agum-dashboard-notification-list agum-notifications"></div></section>
 		<?php endif; ?>
 
 		<?php if ( 'users' === $view ) : ?>

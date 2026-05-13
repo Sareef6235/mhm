@@ -93,7 +93,11 @@ class AGUM_Security {
 		$clean = array();
 		foreach ( $fields as $field ) {
 			$value = isset( $payload[ $field ] ) ? wp_unslash( $payload[ $field ] ) : '';
-			$clean[ $field ] = 'image_path' === $field || 'profile_photo' === $field ? esc_url_raw( trim( (string) $value ) ) : sanitize_text_field( $value );
+			$value = is_scalar( $value ) ? (string) $value : '';
+			$value = preg_replace( '/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $value );
+			$value = preg_replace( '/\s+/u', ' ', $value );
+			$value = trim( $value );
+			$clean[ $field ] = 'image_path' === $field || 'profile_photo' === $field ? esc_url_raw( $value ) : sanitize_text_field( $value );
 		}
 
 		$required = self::required_user_fields();
@@ -118,7 +122,8 @@ class AGUM_Security {
 			return new WP_Error( 'invalid_dob', __( 'Date of birth must use YYYY-MM-DD format.', 'amia-gallery-user-manager' ) );
 		}
 
-		$clean['email'] = sanitize_email( $clean['email'] );
+		$clean['username'] = strtolower( sanitize_user( str_replace( ' ', '_', $clean['username'] ), true ) );
+		$clean['email'] = strtolower( sanitize_email( $clean['email'] ) );
 		if ( '' === $clean['email'] || ! is_email( $clean['email'] ) ) {
 			return new WP_Error( 'invalid_email', __( 'A valid email address is required.', 'amia-gallery-user-manager' ) );
 		}

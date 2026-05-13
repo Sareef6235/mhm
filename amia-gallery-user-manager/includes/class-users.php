@@ -11,63 +11,112 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class AGUM_Users {
 	/**
+	 * Guard native WordPress hooks while AGUM is intentionally creating/updating users.
+	 *
+	 * @var int
+	 */
+	private static $wp_sync_suspend_count = 0;
+
+	/**
+	 * Temporarily suspend user_register/profile_update sync hooks.
+	 *
+	 * @return void
+	 */
+	public static function suspend_wp_sync() {
+		++self::$wp_sync_suspend_count;
+	}
+
+	/**
+	 * Resume user_register/profile_update sync hooks.
+	 *
+	 * @return void
+	 */
+	public static function resume_wp_sync() {
+		self::$wp_sync_suspend_count = max( 0, self::$wp_sync_suspend_count - 1 );
+	}
+
+	/**
+	 * Whether native WordPress sync hooks should currently be skipped.
+	 *
+	 * @return bool
+	 */
+	public static function is_wp_sync_suspended() {
+		return self::$wp_sync_suspend_count > 0;
+	}
+
+	/**
 	 * Create a native WordPress user and linked AGUM profile.
 	 *
 	 * @param array $payload User payload.
 	 * @return int|WP_Error AGUM profile ID or error.
 	 */
 	public static function create( $payload ) {
-		global $wpdb;
 		$clean = AGUM_Security::clean_user_payload( $payload, array( 'require_password' => true, 'require_image' => true ) );
 		if ( is_wp_error( $clean ) ) {
+			AGUM_Logger::debug( 'validation_failed', 'Create payload validation failed.', array( 'code' => $clean->get_error_code(), 'message' => $clean->get_error_message() ) );
 			return $clean;
 		}
 
-		$username = sanitize_user( $clean['username'], true );
-		if ( ! $username ) {
-			return new WP_Error( 'invalid_username', __( 'A valid username is required.', 'amia-gallery-user-manager' ) );
-		}
-		if ( get_user_by( 'login', $username ) ) {
-			return new WP_Error( 'duplicate_username', __( 'A WordPress user with this username already exists.', 'amia-gallery-user-manager' ) );
+		$username = self::normalize_username( $clean['username'] );
+		if ( is_wp_error( $username ) ) {
+			AGUM_Logger::debug( 'invalid_username', 'Username normalization failed during create.', array( 'raw_username' => isset( $payload['username'] ) ? wp_unslash( $payload['username'] ) : '' ) );
+			return $username;
 		}
 
-		$unique = self::validate_unique_profile_fields( $clean );
-		if ( is_wp_error( $unique ) ) {
-			return $unique;
-		}
-
-		$email = self::resolve_email_for_create( $clean['email'], $username );
+		$email = self::normalize_email( $clean['email'] );
 		if ( is_wp_error( $email ) ) {
+			AGUM_Logger::debug( 'invalid_email', 'Email normalization failed during create.', array( 'username' => $username, 'message' => $email->get_error_message() ) );
 			return $email;
 		}
 
+		$duplicate_email = self::email_exists( $email );
+		self::debug_duplicate_check( 'email', $email, $duplicate_email );
+		if ( $duplicate_email ) {
+			return new WP_Error( 'duplicate_email', __( 'A WordPress user with this email already exists.', 'amia-gallery-user-manager' ) );
+		}
+
+		$username = self::generate_available_username( $username );
+		$clean['username'] = $username;
+		$clean['email'] = $email;
+
+		$unique = self::validate_unique_profile_fields( $clean );
+		if ( is_wp_error( $unique ) ) {
+			AGUM_Logger::debug( 'profile_duplicate', 'AGUM profile uniqueness validation failed before insert.', array( 'code' => $unique->get_error_code(), 'message' => $unique->get_error_message(), 'username' => $username, 'email' => $email ) );
+			return $unique;
+		}
+
 		$password = $clean['password'];
-		$wp_user_id = wp_insert_user(
-			array(
-				'user_login'   => $username,
-				'user_pass'    => $password,
-				'user_email'   => $email,
-				'display_name' => $clean['name'],
-				'first_name'   => $clean['name'],
-				'role'         => agum_map_role_to_wp_role( $clean['role'] ),
-			)
+		$user_data = array(
+			'user_login'   => $username,
+			'user_pass'    => $password,
+			'user_email'   => $email,
+			'display_name' => $clean['name'],
+			'first_name'   => $clean['name'],
+			'role'         => agum_map_role_to_wp_role( $clean['role'] ),
 		);
 
+		self::suspend_wp_sync();
+		$wp_user_id = wp_insert_user( $user_data );
+		self::resume_wp_sync();
+
 		if ( is_wp_error( $wp_user_id ) ) {
-			return $wp_user_id;
+			AGUM_Logger::debug( 'wp_insert_user_error', 'wp_insert_user() failed during AGUM create.', array( 'username' => $username, 'email' => $email, 'code' => $wp_user_id->get_error_code(), 'message' => $wp_user_id->get_error_message(), 'data' => $wp_user_id->get_error_data() ) );
+			return new WP_Error( $wp_user_id->get_error_code(), sprintf( __( 'WordPress user creation failed: %s', 'amia-gallery-user-manager' ), $wp_user_id->get_error_message() ), $wp_user_id->get_error_data() );
 		}
 
 		$result = self::insert_agum_profile( $clean, $wp_user_id, $email );
 		if ( is_wp_error( $result ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
+			self::suspend_wp_sync();
 			wp_delete_user( $wp_user_id );
+			self::resume_wp_sync();
 			return $result;
 		}
 
 		self::sync_user_meta( $wp_user_id, $clean, $result );
 		self::save_dynamic_columns( $result, $payload );
 		AGUM_Upload::auto_assign_existing_image( $result, $clean['name'] );
-		AGUM_Logger::log( 'wp_user_created', sprintf( 'Created WordPress user %s', $username ), $result, array( 'wp_user_id' => $wp_user_id ) );
+		AGUM_Logger::log( 'user_created', sprintf( 'Created user %s.', $username ), $result, array( 'wp_user_id' => $wp_user_id, 'username' => $username, 'email' => $email ) );
 		return $result;
 	}
 
@@ -91,10 +140,11 @@ class AGUM_Users {
 			return $clean;
 		}
 
-		$username = sanitize_user( $clean['username'], true );
-		if ( ! $username ) {
-			return new WP_Error( 'invalid_username', __( 'A valid username is required.', 'amia-gallery-user-manager' ) );
+		$username = self::normalize_username( $clean['username'] );
+		if ( is_wp_error( $username ) ) {
+			return $username;
 		}
+		$clean['username'] = $username;
 
 		$wp_user_id = absint( $existing->wp_user_id );
 		if ( ! $wp_user_id ) {
@@ -131,8 +181,11 @@ class AGUM_Users {
 			$wp_data['user_pass'] = $clean['password'];
 		}
 
+		self::suspend_wp_sync();
 		$wp_result = wp_update_user( $wp_data );
+		self::resume_wp_sync();
 		if ( is_wp_error( $wp_result ) ) {
+			AGUM_Logger::debug( 'wp_update_user_error', 'wp_update_user() failed during AGUM update.', array( 'agum_id' => $user_id, 'wp_user_id' => $wp_user_id, 'code' => $wp_result->get_error_code(), 'message' => $wp_result->get_error_message() ) );
 			return $wp_result;
 		}
 
@@ -145,7 +198,8 @@ class AGUM_Users {
 		self::sync_user_meta( $wp_user_id, $clean, $user_id );
 		self::save_dynamic_columns( $user_id, $payload );
 		AGUM_Upload::auto_assign_existing_image( $user_id, $clean['name'] );
-		AGUM_Logger::log( 'wp_user_updated', sprintf( 'Updated WordPress user %s', $username ), $user_id, array( 'wp_user_id' => $wp_user_id ) );
+		$action = ( isset( $existing->role ) && $existing->role !== $clean['role'] ) ? 'role_changed' : 'user_updated';
+		AGUM_Logger::log( $action, sprintf( 'Updated user %s.', $username ), $user_id, array( 'wp_user_id' => $wp_user_id, 'old_role' => isset( $existing->role ) ? $existing->role : '', 'new_role' => $clean['role'] ) );
 		return true;
 	}
 
@@ -164,7 +218,8 @@ class AGUM_Users {
 
 		$result = $wpdb->insert( AGUM_DB::users_table(), $data, array_merge( self::agum_profile_formats(), array( '%s' ) ) );
 		if ( false === $result ) {
-			return new WP_Error( 'db_insert_failed', __( 'Could not create AGUM profile. Username may already exist.', 'amia-gallery-user-manager' ) );
+			AGUM_Logger::debug( 'db_insert_failed', 'Could not create AGUM profile row.', array( 'last_error' => $wpdb->last_error, 'last_query' => $wpdb->last_query, 'wp_user_id' => $wp_user_id, 'username' => $clean['username'], 'email' => $email ) );
+			return new WP_Error( 'db_insert_failed', sprintf( __( 'Could not create AGUM profile. Database error: %s', 'amia-gallery-user-manager' ), $wpdb->last_error ? $wpdb->last_error : __( 'unknown database failure', 'amia-gallery-user-manager' ) ) );
 		}
 
 		return (int) $wpdb->insert_id;
@@ -187,7 +242,7 @@ class AGUM_Users {
 			'class'              => $clean['class'],
 			'dob'                => $clean['dob'] ? $clean['dob'] : null,
 			'role'               => $clean['role'],
-			'username'           => sanitize_user( $clean['username'], true ),
+			'username'           => self::normalize_username_for_storage( $clean['username'] ),
 			'email'              => sanitize_email( $email ),
 			'password_hash'      => '',
 			'phone_number'       => $clean['phone_number'],
@@ -389,12 +444,12 @@ class AGUM_Users {
 		$checks = array(
 			'student_id'   => __( 'Student ID already exists.', 'amia-gallery-user-manager' ),
 			'admission_no' => __( 'Admission number already exists.', 'amia-gallery-user-manager' ),
-			'username'     => __( 'Username already exists in AGUM profiles.', 'amia-gallery-user-manager' ),
-			'email'        => __( 'Email already exists in AGUM profiles.', 'amia-gallery-user-manager' ),
 		);
 
 		foreach ( $checks as $field => $message ) {
-			if ( self::profile_value_exists( $field, $clean[ $field ], $exclude_id ) ) {
+			$value = isset( $clean[ $field ] ) ? $clean[ $field ] : '';
+			if ( self::profile_value_exists( $field, $value, $exclude_id ) ) {
+				AGUM_Logger::debug( 'duplicate_check_match', 'AGUM duplicate check found an existing profile value.', array( 'field' => $field, 'value' => $value, 'exclude_id' => absint( $exclude_id ) ) );
 				return new WP_Error( 'duplicate_' . $field, $message );
 			}
 		}
@@ -403,7 +458,7 @@ class AGUM_Users {
 	}
 
 	/**
-	 * Check whether an AGUM profile field value exists.
+	 * Check whether an AGUM profile field value exists with normalized comparisons.
 	 *
 	 * @param string $field Field name.
 	 * @param string $value Field value.
@@ -413,17 +468,180 @@ class AGUM_Users {
 	private static function profile_value_exists( $field, $value, $exclude_id = 0 ) {
 		global $wpdb;
 		$allowed = array( 'student_id', 'admission_no', 'username', 'email' );
-		if ( ! in_array( $field, $allowed, true ) || '' === (string) $value ) {
+		if ( ! in_array( $field, $allowed, true ) ) {
 			return false;
 		}
-		$table = AGUM_DB::users_table();
-		if ( $exclude_id ) {
-			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s AND id != %d", $value, absint( $exclude_id ) ) );
-		} else {
-			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s", $value ) );
+
+		$value = 'email' === $field ? self::normalize_email_for_storage( $value ) : self::normalize_plain_value( $value );
+		if ( 'username' === $field ) {
+			$value = self::normalize_username_for_storage( $value );
+		}
+		if ( '' === $value ) {
+			return false;
 		}
 
-		return (int) $count > 0;
+		$table = AGUM_DB::users_table();
+		$where = "LOWER(TRIM({$field})) = LOWER(TRIM(%s))";
+		$params = array( $value );
+		if ( $exclude_id ) {
+			$where .= ' AND id != %d';
+			$params[] = absint( $exclude_id );
+		}
+		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$where}", $params ) );
+		self::debug_duplicate_check( 'agum_' . $field, $value, $count > 0, array( 'exclude_id' => absint( $exclude_id ) ) );
+
+		return $count > 0;
+	}
+
+	/**
+	 * Normalize free-form identifiers and strip hidden whitespace.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	private static function normalize_plain_value( $value ) {
+		$value = is_scalar( $value ) ? (string) $value : '';
+		$value = preg_replace( '/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $value );
+		$value = preg_replace( '/\s+/u', ' ', $value );
+		return trim( $value );
+	}
+
+	/**
+	 * Normalize username for WordPress and AGUM storage.
+	 *
+	 * @param mixed $username Raw username.
+	 * @return string|WP_Error
+	 */
+	private static function normalize_username( $username ) {
+		$username = self::normalize_username_for_storage( $username );
+		if ( '' === $username ) {
+			return new WP_Error( 'invalid_username', __( 'A valid username is required.', 'amia-gallery-user-manager' ) );
+		}
+		if ( ! validate_username( $username ) ) {
+			return new WP_Error( 'invalid_username', __( 'Username contains unsupported characters after normalization.', 'amia-gallery-user-manager' ) );
+		}
+		return $username;
+	}
+
+	/**
+	 * Normalize username as a plain string without returning WP_Error.
+	 *
+	 * @param mixed $username Raw username.
+	 * @return string
+	 */
+	private static function normalize_username_for_storage( $username ) {
+		$username = self::normalize_plain_value( $username );
+		$username = str_replace( ' ', '_', $username );
+		$username = sanitize_user( $username, true );
+		$username = strtolower( $username );
+		$username = preg_replace( '/_+/', '_', $username );
+		return trim( $username, '._-' );
+	}
+
+	/**
+	 * Normalize and validate email for duplicate checks.
+	 *
+	 * @param mixed $email Raw email.
+	 * @return string|WP_Error
+	 */
+	private static function normalize_email( $email ) {
+		$email = self::normalize_email_for_storage( $email );
+		if ( '' === $email ) {
+			return new WP_Error( 'missing_email', __( 'Email is required.', 'amia-gallery-user-manager' ) );
+		}
+		if ( ! is_email( $email ) ) {
+			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
+		}
+		return $email;
+	}
+
+	/**
+	 * Normalize email as a plain string.
+	 *
+	 * @param mixed $email Raw email.
+	 * @return string
+	 */
+	private static function normalize_email_for_storage( $email ) {
+		return strtolower( sanitize_email( self::normalize_plain_value( $email ) ) );
+	}
+
+	/**
+	 * WordPress email existence check with cache cleanup for stale reads.
+	 *
+	 * @param string $email Email.
+	 * @return int|false
+	 */
+	private static function email_exists( $email ) {
+		$owner = email_exists( $email );
+		if ( $owner ) {
+			clean_user_cache( $owner );
+			$owner = email_exists( $email );
+		}
+		return $owner;
+	}
+
+	/**
+	 * WordPress username existence check with cache cleanup for stale reads.
+	 *
+	 * @param string $username Username.
+	 * @return int|false
+	 */
+	private static function username_exists( $username ) {
+		$owner = username_exists( $username );
+		if ( $owner ) {
+			clean_user_cache( $owner );
+			$owner = username_exists( $username );
+		}
+		return $owner;
+	}
+
+	/**
+	 * Generate an available username by appending _1, _2, ... only on real conflicts.
+	 *
+	 * @param string $base Base username.
+	 * @return string
+	 */
+	private static function generate_available_username( $base ) {
+		$base = self::normalize_username_for_storage( $base );
+		$candidate = $base;
+		$suffix = 1;
+		while ( self::username_conflicts( $candidate ) ) {
+			$candidate = $base . '_' . $suffix;
+			++$suffix;
+		}
+		if ( $candidate !== $base ) {
+			AGUM_Logger::debug( 'username_auto_generated', 'Username conflict was real; generated an available username.', array( 'requested' => $base, 'generated' => $candidate ) );
+		}
+		return $candidate;
+	}
+
+	/**
+	 * Check both WordPress and AGUM profile stores for username conflicts.
+	 *
+	 * @param string $username Username.
+	 * @param int    $exclude_id Existing AGUM ID to exclude.
+	 * @param int    $exclude_wp_user_id Existing WordPress user ID to exclude.
+	 * @return bool
+	 */
+	private static function username_conflicts( $username, $exclude_id = 0, $exclude_wp_user_id = 0 ) {
+		$wp_owner = self::username_exists( $username );
+		$wp_conflict = $wp_owner && absint( $wp_owner ) !== absint( $exclude_wp_user_id );
+		$agum_conflict = self::profile_value_exists( 'username', $username, $exclude_id );
+		self::debug_duplicate_check( 'username', $username, $wp_conflict || $agum_conflict, array( 'wp_owner' => $wp_owner, 'agum_conflict' => $agum_conflict ) );
+		return $wp_conflict || $agum_conflict;
+	}
+
+	/**
+	 * Write detailed duplicate validation traces for administrators.
+	 *
+	 * @param string $field Field checked.
+	 * @param string $value Checked value.
+	 * @param bool   $exists Whether a duplicate exists.
+	 * @param array  $extra Extra context.
+	 * @return void
+	 */
+	private static function debug_duplicate_check( $field, $value, $exists, $extra = array() ) {
+		AGUM_Logger::debug( 'duplicate_check', sprintf( 'Duplicate check for %s: %s.', $field, $exists ? 'match' : 'clear' ), array_merge( array( 'field' => $field, 'value' => $value, 'exists' => (bool) $exists ), $extra ) );
 	}
 
 	/**
@@ -463,8 +681,8 @@ class AGUM_Users {
 	 */
 	public static function migrate_profile_to_wp_user( $profile ) {
 		global $wpdb;
-		$username = sanitize_user( $profile->username, true );
-		if ( ! $username ) {
+		$username = self::normalize_username( $profile->username );
+		if ( is_wp_error( $username ) ) {
 			return new WP_Error( 'invalid_username', __( 'Profile has no valid username.', 'amia-gallery-user-manager' ) );
 		}
 
@@ -474,23 +692,26 @@ class AGUM_Users {
 			$wp_user_id = (int) $wp_user->ID;
 			$linked = true;
 		} else {
-			$email = self::resolve_email_for_create( ! empty( $profile->email ) ? $profile->email : agum_unique_placeholder_email( $username ), $username );
-			if ( is_wp_error( $email ) ) {
-				return $email;
-			}
-			$wp_user_id = wp_insert_user(
-				array(
-					'user_login'   => $username,
-					'user_pass'    => wp_generate_password( 16, true, true ),
-					'user_email'   => $email,
-					'display_name' => $profile->name,
-					'first_name'   => $profile->name,
-					'role'         => agum_map_role_to_wp_role( $profile->role ),
-				)
-			);
-			if ( is_wp_error( $wp_user_id ) ) {
-				return $wp_user_id;
-			}
+				$email = self::resolve_email_for_create( ! empty( $profile->email ) ? $profile->email : agum_unique_placeholder_email( $username ), $username );
+				if ( is_wp_error( $email ) ) {
+					return $email;
+				}
+				self::suspend_wp_sync();
+				$wp_user_id = wp_insert_user(
+					array(
+						'user_login'   => $username,
+						'user_pass'    => wp_generate_password( 16, true, true ),
+						'user_email'   => $email,
+						'display_name' => $profile->name,
+						'first_name'   => $profile->name,
+						'role'         => agum_map_role_to_wp_role( $profile->role ),
+					)
+				);
+				self::resume_wp_sync();
+				if ( is_wp_error( $wp_user_id ) ) {
+					AGUM_Logger::debug( 'wp_insert_user_error', 'wp_insert_user() failed during AGUM migration.', array( 'username' => $username, 'code' => $wp_user_id->get_error_code(), 'message' => $wp_user_id->get_error_message() ) );
+					return $wp_user_id;
+				}
 		}
 
 		$clean = array(
@@ -530,12 +751,12 @@ class AGUM_Users {
 	 * @return string|WP_Error
 	 */
 	private static function resolve_email_for_create( $email, $username ) {
-		$email = sanitize_email( $email );
+		$email = self::normalize_email_for_storage( $email );
 		if ( $email ) {
 			if ( ! is_email( $email ) ) {
 				return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
 			}
-			if ( get_user_by( 'email', $email ) ) {
+			if ( self::email_exists( $email ) ) {
 				return new WP_Error( 'duplicate_email', __( 'A WordPress user with this email already exists.', 'amia-gallery-user-manager' ) );
 			}
 			return $email;
@@ -553,15 +774,15 @@ class AGUM_Users {
 	 * @return string|WP_Error
 	 */
 	private static function resolve_email_for_update( $email, $username, $wp_user_id ) {
-		$email = sanitize_email( $email );
+		$email = self::normalize_email_for_storage( $email );
 		if ( ! $email ) {
 			return new WP_Error( 'missing_email', __( 'Email is required.', 'amia-gallery-user-manager' ) );
 		}
 		if ( ! is_email( $email ) ) {
 			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
 		}
-		$owner = get_user_by( 'email', $email );
-		if ( $owner && (int) $owner->ID !== absint( $wp_user_id ) ) {
+		$owner_id = self::email_exists( $email );
+		if ( $owner_id && absint( $owner_id ) !== absint( $wp_user_id ) ) {
 			return new WP_Error( 'duplicate_email', __( 'A different WordPress user already uses this email.', 'amia-gallery-user-manager' ) );
 		}
 
@@ -605,7 +826,9 @@ class AGUM_Users {
 			return new WP_Error( 'missing_wp_user', __( 'WordPress user not found.', 'amia-gallery-user-manager' ) );
 		}
 		$table = AGUM_DB::users_table();
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE wp_user_id = %d OR username = %s OR email = %s LIMIT 1", $user->ID, $user->user_login, $user->user_email ) );
+		$username = self::normalize_username_for_storage( $user->user_login );
+		$email = self::normalize_email_for_storage( $user->user_email );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE wp_user_id = %d OR LOWER(TRIM(username)) = LOWER(TRIM(%s)) OR LOWER(TRIM(email)) = LOWER(TRIM(%s)) LIMIT 1", $user->ID, $username, $email ) );
 		$role = get_user_meta( $user->ID, 'agum_role', true );
 		if ( ! $role ) {
 			$role = in_array( 'editor', (array) $user->roles, true ) ? 'ustad' : ( in_array( 'administrator', (array) $user->roles, true ) ? 'admin' : 'student' );
@@ -613,8 +836,8 @@ class AGUM_Users {
 		$data = array(
 			'wp_user_id' => $user->ID,
 			'name' => $user->display_name ? $user->display_name : $user->user_login,
-			'username' => $user->user_login,
-			'email' => $user->user_email,
+			'username' => $username,
+			'email' => $email,
 			'role' => $role,
 			'student_id' => get_user_meta( $user->ID, 'agum_student_id', true ) ?: 'WP-' . $user->ID,
 			'admission_no' => get_user_meta( $user->ID, 'agum_admission_no', true ) ?: 'WP-' . $user->ID,
@@ -628,11 +851,18 @@ class AGUM_Users {
 		);
 		$formats = array( '%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s' );
 		if ( $existing ) {
-			$wpdb->update( $table, $data, array( 'id' => absint( $existing->id ) ), $formats, array( '%d' ) );
+			$updated = $wpdb->update( $table, $data, array( 'id' => absint( $existing->id ) ), $formats, array( '%d' ) );
+			if ( false === $updated ) {
+				AGUM_Logger::debug( 'sync_update_failed', 'Failed updating AGUM profile during WP sync.', array( 'wp_user_id' => $user->ID, 'last_error' => $wpdb->last_error ) );
+			}
 			return absint( $existing->id );
 		}
 		$data['created_at'] = current_time( 'mysql' );
-		$wpdb->insert( $table, $data, array_merge( $formats, array( '%s' ) ) );
+		$inserted = $wpdb->insert( $table, $data, array_merge( $formats, array( '%s' ) ) );
+		if ( false === $inserted ) {
+			AGUM_Logger::debug( 'sync_insert_failed', 'Failed inserting AGUM profile during WP sync.', array( 'wp_user_id' => $user->ID, 'last_error' => $wpdb->last_error ) );
+			return new WP_Error( 'sync_insert_failed', $wpdb->last_error );
+		}
 		return absint( $wpdb->insert_id );
 	}
 

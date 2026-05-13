@@ -70,11 +70,11 @@ class AGUM_DB {
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
-			UNIQUE KEY username (username),
-			UNIQUE KEY wp_user_id (wp_user_id),
-			UNIQUE KEY student_id (student_id),
-			UNIQUE KEY admission_no (admission_no),
-			UNIQUE KEY email (email),
+			KEY username (username),
+			KEY wp_user_id (wp_user_id),
+			KEY student_id (student_id),
+			KEY admission_no (admission_no),
+			KEY email (email),
 			KEY role (role),
 			KEY phone_number (phone_number)
 		) {$charset};" );
@@ -137,7 +137,48 @@ class AGUM_DB {
 			KEY created_at (created_at)
 		) {$charset};" );
 
+		self::repair_schema();
 		self::sync_dynamic_columns();
+	}
+
+	/**
+	 * Repair legacy schema problems that caused false duplicate failures.
+	 *
+	 * @return void
+	 */
+	private static function repair_schema() {
+		global $wpdb;
+		$tables = array( self::users_table(), self::logs_table(), self::otp_table(), self::notifications_table(), self::jobs_table() );
+		$charset_collate = $wpdb->get_charset_collate();
+
+		foreach ( $tables as $table ) {
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+				continue;
+			}
+			if ( preg_match( '/DEFAULT CHARSET=([^\s]+)(?: COLLATE=([^\s]+))?/i', $charset_collate, $matches ) ) {
+				$charset = sanitize_key( $matches[1] );
+				$collate = ! empty( $matches[2] ) ? sanitize_key( $matches[2] ) : '';
+				$wpdb->query( "ALTER TABLE {$table} CONVERT TO CHARACTER SET {$charset}" . ( $collate ? " COLLATE {$collate}" : '' ) );
+			}
+		}
+
+		$users = self::users_table();
+		foreach ( array( 'username', 'email', 'student_id', 'admission_no', 'wp_user_id' ) as $index ) {
+			$index_row = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$users} WHERE Key_name = %s AND Non_unique = 0", $index ) );
+			if ( $index_row ) {
+				$wpdb->query( "ALTER TABLE {$users} DROP INDEX {$index}" );
+				AGUM_Logger::debug( 'schema_repair', sprintf( 'Dropped legacy UNIQUE index %s from AGUM users table.', $index ), array( 'table' => $users ) );
+			}
+		}
+
+		foreach ( array( 'username', 'email', 'student_id', 'admission_no', 'wp_user_id', 'role', 'phone_number' ) as $index ) {
+			$index_row = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$users} WHERE Key_name = %s", $index ) );
+			if ( ! $index_row ) {
+				$wpdb->query( "ALTER TABLE {$users} ADD INDEX {$index} ({$index})" );
+			}
+		}
+
+		$wpdb->query( "ALTER TABLE {$users} MODIFY id bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
 	}
 
 	public static function sync_dynamic_columns() {

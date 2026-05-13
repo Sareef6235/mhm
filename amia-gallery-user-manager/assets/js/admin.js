@@ -24,7 +24,7 @@
     if(!ids.length){ toast('Select at least one user.', true); return; }
     if(!confirm(agumAdmin.i18n.confirmDelete)){ return; }
     $.post(agumAdmin.ajaxUrl,{action:'agum_delete_users',nonce:agumAdmin.nonce,ids:ids}).done(function(resp){
-      if(resp.success){ toast('Deleted '+resp.data.deleted+' users'); $('#agum-search').trigger('input'); }
+      if(resp.success){ toast(resp.data.message || ('Deleted '+resp.data.deleted+' users')); $('#agum-search').trigger('input'); window.agumPollNotifications && window.agumPollNotifications(); }
       else{ toast('Delete failed', true); }
     });
   });
@@ -67,8 +67,40 @@
 })(jQuery);
 (function($){
   'use strict';
-  function renderNotifications(items){ const box=$('.agum-notifications'); if(!box.length){return;} box.empty(); (items||[]).forEach(function(n){box.append('<div class="agum-notification"><strong>'+n.title+'</strong><p>'+n.message+'</p></div>');}); }
-  function pollNotifications(){ if(typeof agumAdmin==='undefined'){return;} $.get(agumAdmin.ajaxUrl,{action:'agum_get_notifications',nonce:agumAdmin.nonce}).done(function(r){ if(r.success){ $('.agum-notification-count').text(r.data.unread); renderNotifications(r.data.items); } }); }
-  setInterval(pollNotifications,30000); $(pollNotifications);
+  let lastSeenId = 0;
+  function escapeHtml(value){ return $('<div/>').text(value || '').html(); }
+  function renderNotifications(items){
+    const boxes=$('.agum-notifications'); if(!boxes.length){return;}
+    boxes.each(function(){
+      const box=$(this); box.empty();
+      if(!items || !items.length){ box.append('<div class="agum-notification-empty">No notifications yet.</div>'); return; }
+      items.forEach(function(n){
+        const type=escapeHtml(n.type || 'info');
+        box.append('<div class="agum-notification agum-notification-'+type+'" data-id="'+parseInt(n.id,10)+'"><strong>'+escapeHtml(n.title)+'</strong><p>'+escapeHtml(n.message)+'</p><time>'+escapeHtml(n.created_at)+'</time></div>');
+      });
+    });
+  }
+  function pollNotifications(){
+    if(typeof agumAdmin==='undefined'){return;}
+    $.get(agumAdmin.ajaxUrl,{action:'agum_get_notifications',nonce:agumAdmin.nonce,limit:20}).done(function(r){
+      if(!r.success){return;}
+      const unread=parseInt(r.data.unread,10)||0;
+      $('.agum-notification-count').text(unread).toggleClass('is-zero', unread===0);
+      const items=r.data.items||[];
+      if(items.length){
+        const newest=parseInt(items[0].id,10)||0;
+        if(lastSeenId && newest>lastSeenId){
+          const fresh=items.filter(function(item){ return (parseInt(item.id,10)||0)>lastSeenId; }).reverse();
+          fresh.forEach(function(item){ window.agumToast && window.agumToast(item.title+': '+item.message, item.type==='error'); });
+        }
+        lastSeenId=Math.max(lastSeenId,newest);
+      }
+      renderNotifications(items);
+    });
+  }
+  window.agumPollNotifications = pollNotifications;
+  setInterval(pollNotifications,15000); $(pollNotifications);
+  $(document).on('click','.agum-bell',function(e){ e.preventDefault(); const center=$(this).closest('.agum-notification-center'); center.toggleClass('is-open'); $(this).attr('aria-expanded', center.hasClass('is-open') ? 'true' : 'false'); });
+  $(document).on('click',function(e){ if(!$(e.target).closest('.agum-notification-center').length){ $('.agum-notification-center').removeClass('is-open'); $('.agum-bell').attr('aria-expanded','false'); } });
   $(document).on('click','.agum-mark-notifications-read',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_mark_notifications_read',nonce:agumAdmin.nonce}).done(pollNotifications); });
 })(jQuery);

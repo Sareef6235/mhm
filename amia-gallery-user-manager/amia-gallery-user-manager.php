@@ -72,6 +72,7 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_filter( 'plugin_action_links_' . plugin_basename( AGUM_FILE ), array( $this, 'plugin_action_links' ) );
 		add_filter( 'get_avatar_url', array( $this, 'get_agum_avatar_url' ), 10, 3 );
 		add_action( 'init', array( 'AGUM_Security', 'start_secure_session' ), 1 );
+		add_action( 'admin_init', array( $this, 'maybe_repair_schema' ) );
 		add_action( 'admin_init', array( $this, 'maybe_sync_native_users' ) );
 		add_action( 'user_register', array( $this, 'sync_wp_user_to_agum' ) );
 		add_action( 'profile_update', array( $this, 'sync_wp_user_to_agum' ) );
@@ -137,12 +138,36 @@ final class AMIA_Gallery_User_Manager_Pro {
 
 
 	public function sync_wp_user_to_agum( $user_id ) {
-		AGUM_Users::sync_wp_user( $user_id );
+		if ( AGUM_Users::is_wp_sync_suspended() ) {
+			AGUM_Logger::debug( 'sync_suspended', 'Skipped native WordPress sync during AGUM-controlled user write.', array( 'wp_user_id' => absint( $user_id ) ) );
+			return;
+		}
+		$result = AGUM_Users::sync_wp_user( $user_id );
+		if ( is_wp_error( $result ) ) {
+			AGUM_Logger::debug( 'sync_wp_user_error', 'Failed syncing native WordPress user into AGUM.', array( 'wp_user_id' => absint( $user_id ), 'message' => $result->get_error_message() ) );
+		}
 	}
 
 	public function delete_agum_for_wp_user( $user_id ) {
 		global $wpdb;
 		$wpdb->delete( AGUM_DB::users_table(), array( 'wp_user_id' => absint( $user_id ) ), array( '%d' ) );
+	}
+
+
+	/**
+	 * Repair schema after updates even when native sync already completed.
+	 *
+	 * @return void
+	 */
+	public function maybe_repair_schema() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( get_option( 'agum_schema_version' ) === AGUM_VERSION ) {
+			return;
+		}
+		AGUM_DB::create_tables();
+		update_option( 'agum_schema_version', AGUM_VERSION );
 	}
 
 	/**
@@ -220,6 +245,7 @@ final class AMIA_Gallery_User_Manager_Pro {
 		AGUM_Upload::ensure_upload_directories();
 		AGUM_Users::migrate_all_to_wp_users();
 		update_option( 'agum_native_user_sync_complete', current_time( 'mysql' ) );
+		update_option( 'agum_schema_version', AGUM_VERSION );
 		add_option( 'agum_settings', agum_default_settings() );
 		flush_rewrite_rules();
 	}

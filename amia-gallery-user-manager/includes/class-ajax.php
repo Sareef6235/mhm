@@ -44,17 +44,20 @@ class AGUM_Ajax {
 	public static function save_user() {
 		AGUM_Security::ajax_guard();
 		$user_id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		AGUM_Logger::debug( 'ajax_save_user', 'AJAX user save requested.', array( 'agum_id' => $user_id, 'mode' => $user_id ? 'update' : 'create' ) );
 		$result = $user_id ? AGUM_Users::update( $user_id, $_POST ) : AGUM_Users::create( $_POST );
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			AGUM_Logger::debug( 'ajax_save_user_error', 'AJAX user save failed.', array( 'agum_id' => $user_id, 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) );
+			wp_send_json_error( array( 'message' => $result->get_error_message(), 'code' => $result->get_error_code() ) );
 		}
-		wp_send_json_success( array( 'message' => __( 'User saved successfully.', 'amia-gallery-user-manager' ) ) );
+		wp_send_json_success( array( 'message' => $user_id ? __( 'User updated successfully.', 'amia-gallery-user-manager' ) : __( 'User created successfully.', 'amia-gallery-user-manager' ), 'id' => $result ) );
 	}
 
 	public static function delete_users() {
 		AGUM_Security::ajax_guard();
 		$ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : array();
-		wp_send_json_success( array( 'deleted' => AGUM_Users::delete( $ids ) ) );
+		$deleted = AGUM_Users::delete( $ids );
+		wp_send_json_success( array( 'deleted' => $deleted, 'message' => sprintf( __( 'Deleted %d users.', 'amia-gallery-user-manager' ), $deleted ) ) );
 	}
 
 	public static function generate_otp() {
@@ -99,14 +102,15 @@ class AGUM_Ajax {
 
 	public static function get_notifications() {
 		AGUM_Security::ajax_guard();
-		$items = AGUM_Logger::notifications( 12 );
-		$unread = count( AGUM_Logger::notifications( 50, true ) );
-		wp_send_json_success( array( 'items' => $items, 'unread' => $unread ) );
+		$items = AGUM_Logger::notifications( isset( $_GET['limit'] ) ? absint( $_GET['limit'] ) : 20 );
+		$unread = count( AGUM_Logger::notifications( 100, true ) );
+		wp_send_json_success( array( 'items' => $items, 'unread' => $unread, 'serverTime' => current_time( 'mysql' ) ) );
 	}
 
 	public static function mark_notifications_read() {
 		AGUM_Security::ajax_guard();
-		AGUM_Logger::mark_notifications_read();
+		$ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : array();
+		AGUM_Logger::mark_notifications_read( $ids );
 		wp_send_json_success( array( 'message' => __( 'Notifications marked as read.', 'amia-gallery-user-manager' ) ) );
 	}
 
