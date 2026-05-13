@@ -1,0 +1,1 @@
+<?php /* Template Name: Activity Logs */ get_header(); get_template_part( 'partials/dashboard-shell' ); ?><h1>Activity Logs</h1><?php get_template_part( 'partials/activity-list' ); get_template_part( 'partials/dashboard-end' ); get_footer(); ?>

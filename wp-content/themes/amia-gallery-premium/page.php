@@ -1,0 +1,1 @@
+<?php get_header(); ?><div class="amia-container amia-layout"><section><?php while ( have_posts() ) : the_post(); ?><article <?php post_class( 'amia-card' ); ?>><h1><?php the_title(); ?></h1><?php the_content(); ?></article><?php comments_template(); endwhile; ?></section><?php get_sidebar(); ?></div><?php get_footer(); ?>

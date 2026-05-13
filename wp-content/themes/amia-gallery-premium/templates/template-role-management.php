@@ -1,0 +1,1 @@
+<?php /* Template Name: Role Management */ get_header(); get_template_part( 'partials/dashboard-shell' ); ?><h1>Role Management</h1><?php get_template_part( 'partials/role-cards' ); get_template_part( 'partials/dashboard-end' ); get_footer(); ?>

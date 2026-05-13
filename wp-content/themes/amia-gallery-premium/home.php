@@ -1,0 +1,1 @@
+<?php get_header(); amia_premium_page_hero( get_the_archive_title(), 'News, gallery updates and AMIA announcements.' ); ?><div class="amia-container amia-layout"><section><?php amia_premium_posts_grid(); ?></section><?php get_sidebar(); ?></div><?php get_footer(); ?>

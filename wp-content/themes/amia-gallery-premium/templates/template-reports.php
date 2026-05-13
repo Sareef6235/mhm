@@ -1,0 +1,1 @@
+<?php /* Template Name: Reports */ get_header(); get_template_part( 'partials/dashboard-shell' ); ?><h1>Reports</h1><?php get_template_part( 'partials/role-cards' ); get_template_part( 'partials/activity-list' ); get_template_part( 'partials/dashboard-end' ); get_footer(); ?>
