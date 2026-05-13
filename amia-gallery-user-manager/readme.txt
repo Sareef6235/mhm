@@ -14,7 +14,7 @@ Premium WordPress user management dashboard for AMIA Gallery with secure CSV imp
 AMIA Gallery User Manager Pro provides a modern, glassmorphism WordPress admin experience for managing students, ustads, staff, and administrators. It includes secure database tables, nonce-protected admin actions, prepared statements, CSV import/export, automatic media filename mapping, activity logs, responsive tables, bulk delete, AJAX search, and OTP generation.
 
 == Installation ==
-1. Upload the `amia-gallery-user-manager` folder to `/wp-content/plugins/`.
+1. Upload either the `amia-gallery-user-manager` plugin folder or the full repository ZIP. The root loader `amia-gallery-user-manager.php` makes repository ZIP installs valid for WordPress.
 2. Activate "AMIA Gallery User Manager Pro" in WordPress Plugins.
 3. Open AMIA Gallery in the WordPress admin sidebar.
 
