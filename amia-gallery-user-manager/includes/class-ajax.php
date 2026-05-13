@@ -16,6 +16,7 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_delete_users', array( __CLASS__, 'delete_users' ) );
 		add_action( 'wp_ajax_agum_generate_otp', array( __CLASS__, 'generate_otp' ) );
 		add_action( 'wp_ajax_agum_upload_image', array( __CLASS__, 'upload_image' ) );
+		add_action( 'wp_ajax_agum_validate_image', array( __CLASS__, 'validate_image' ) );
 	}
 
 	public static function search_users() {
@@ -50,6 +51,19 @@ class AGUM_Ajax {
 		AGUM_Security::ajax_guard();
 		$user_id = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
 		wp_send_json_success( array( 'otp' => AGUM_OTP::generate( $user_id ) ) );
+	}
+
+
+	public static function validate_image() {
+		AGUM_Security::ajax_guard();
+		if ( empty( $_FILES['image'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'Profile photo is required.', 'amia-gallery-user-manager' ) ) );
+		}
+		$result = AGUM_Upload::validate_upload_file( $_FILES['image'] );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+		wp_send_json_success( array( 'message' => __( 'Image is valid.', 'amia-gallery-user-manager' ), 'type' => $result['type'], 'ext' => $result['ext'] ) );
 	}
 
 	public static function upload_image() {

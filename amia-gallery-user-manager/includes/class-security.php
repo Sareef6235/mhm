@@ -51,19 +51,61 @@ class AGUM_Security {
 		}
 	}
 
-	public static function clean_user_payload( $payload ) {
+	/**
+	 * Required user fields.
+	 *
+	 * @return array
+	 */
+	public static function required_user_fields() {
+		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+	}
+
+	/**
+	 * Clean and validate a user payload.
+	 *
+	 * @param array $payload Input payload.
+	 * @param array $args Validation args.
+	 * @return array|WP_Error
+	 */
+	public static function clean_user_payload( $payload, $args = array() ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'require_password' => true,
+				'require_image'    => true,
+				'existing_id'      => 0,
+			)
+		);
 		$fields = array(
 			'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email',
-			'password', 'phone_number', 'telegram_username', 'telegram_id', 'image_path',
+			'password', 'phone_number', 'telegram_username', 'telegram_id', 'image_path', 'profile_photo',
 		);
 		$clean = array();
 		foreach ( $fields as $field ) {
 			$value = isset( $payload[ $field ] ) ? wp_unslash( $payload[ $field ] ) : '';
-			$clean[ $field ] = sanitize_text_field( $value );
+			$clean[ $field ] = 'image_path' === $field || 'profile_photo' === $field ? esc_url_raw( trim( (string) $value ) ) : sanitize_text_field( $value );
+		}
+
+		$required = self::required_user_fields();
+		if ( ! $args['require_password'] ) {
+			$required = array_diff( $required, array( 'password' ) );
+		}
+		if ( ! $args['require_image'] ) {
+			$required = array_diff( $required, array( 'image_path', 'profile_photo' ) );
+		}
+
+		$missing = array();
+		foreach ( $required as $field ) {
+			if ( '' === trim( (string) $clean[ $field ] ) ) {
+				$missing[] = $field;
+			}
+		}
+		if ( $missing ) {
+			return new WP_Error( 'missing_required_fields', sprintf( __( 'Missing required fields: %s', 'amia-gallery-user-manager' ), implode( ', ', $missing ) ) );
 		}
 
 		if ( ! agum_is_valid_phone( $clean['phone_number'] ) ) {
-			return new WP_Error( 'invalid_phone', __( 'Phone number must contain only numbers and an optional country code.', 'amia-gallery-user-manager' ) );
+			return new WP_Error( 'invalid_phone', __( 'Phone number must contain numbers only, with an optional leading country-code plus sign.', 'amia-gallery-user-manager' ) );
 		}
 
 		if ( '' !== $clean['dob'] && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $clean['dob'] ) ) {
@@ -71,8 +113,26 @@ class AGUM_Security {
 		}
 
 		$clean['email'] = sanitize_email( $clean['email'] );
-		if ( '' !== $clean['email'] && ! is_email( $clean['email'] ) ) {
-			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
+		if ( '' === $clean['email'] || ! is_email( $clean['email'] ) ) {
+			return new WP_Error( 'invalid_email', __( 'A valid email address is required.', 'amia-gallery-user-manager' ) );
+		}
+
+		if ( $args['require_password'] && strlen( (string) $clean['password'] ) < 8 ) {
+			return new WP_Error( 'weak_password', __( 'Password is required and must be at least 8 characters.', 'amia-gallery-user-manager' ) );
+		}
+		if ( ! $args['require_password'] && '' !== $clean['password'] && strlen( (string) $clean['password'] ) < 8 ) {
+			return new WP_Error( 'weak_password', __( 'Password must be at least 8 characters when changed.', 'amia-gallery-user-manager' ) );
+		}
+
+		if ( $args['require_image'] ) {
+			$image_error = AGUM_Upload::validate_image_reference( $clean['image_path'] );
+			if ( is_wp_error( $image_error ) ) {
+				return $image_error;
+			}
+			$photo_error = AGUM_Upload::validate_image_reference( $clean['profile_photo'] );
+			if ( is_wp_error( $photo_error ) ) {
+				return $photo_error;
+			}
 		}
 
 		$clean['role'] = in_array( $clean['role'], array( 'student', 'ustad', 'admin', 'superadmin', 'staff' ), true ) ? $clean['role'] : 'student';

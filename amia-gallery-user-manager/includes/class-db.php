@@ -50,6 +50,7 @@ class AGUM_DB {
 			telegram_username varchar(120) DEFAULT '' NOT NULL,
 			telegram_id varchar(120) DEFAULT '' NOT NULL,
 			image_path text NULL,
+			profile_photo text NULL,
 			otp_code varchar(20) DEFAULT '' NOT NULL,
 			last_login datetime NULL,
 			created_at datetime NOT NULL,
@@ -57,10 +58,11 @@ class AGUM_DB {
 			PRIMARY KEY  (id),
 			UNIQUE KEY username (username),
 			UNIQUE KEY wp_user_id (wp_user_id),
-			KEY email (email),
+			UNIQUE KEY student_id (student_id),
+			UNIQUE KEY admission_no (admission_no),
+			UNIQUE KEY email (email),
 			KEY role (role),
-			KEY phone_number (phone_number),
-			KEY admission_no (admission_no)
+			KEY phone_number (phone_number)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$logs} (

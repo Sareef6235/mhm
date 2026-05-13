@@ -18,7 +18,7 @@ class AGUM_Users {
 	 */
 	public static function create( $payload ) {
 		global $wpdb;
-		$clean = AGUM_Security::clean_user_payload( $payload );
+		$clean = AGUM_Security::clean_user_payload( $payload, array( 'require_password' => true, 'require_image' => true ) );
 		if ( is_wp_error( $clean ) ) {
 			return $clean;
 		}
@@ -31,12 +31,17 @@ class AGUM_Users {
 			return new WP_Error( 'duplicate_username', __( 'A WordPress user with this username already exists.', 'amia-gallery-user-manager' ) );
 		}
 
+		$unique = self::validate_unique_profile_fields( $clean );
+		if ( is_wp_error( $unique ) ) {
+			return $unique;
+		}
+
 		$email = self::resolve_email_for_create( $clean['email'], $username );
 		if ( is_wp_error( $email ) ) {
 			return $email;
 		}
 
-		$password = $clean['password'] ? $clean['password'] : wp_generate_password( 16, true, true );
+		$password = $clean['password'];
 		$wp_user_id = wp_insert_user(
 			array(
 				'user_login'   => $username,
@@ -80,7 +85,7 @@ class AGUM_Users {
 			return new WP_Error( 'missing_profile', __( 'AGUM profile not found.', 'amia-gallery-user-manager' ) );
 		}
 
-		$clean = AGUM_Security::clean_user_payload( $payload );
+		$clean = AGUM_Security::clean_user_payload( $payload, array( 'require_password' => false, 'require_image' => true, 'existing_id' => $user_id ) );
 		if ( is_wp_error( $clean ) ) {
 			return $clean;
 		}
@@ -97,6 +102,11 @@ class AGUM_Users {
 				return $migrated;
 			}
 			$wp_user_id = is_array( $migrated ) ? absint( $migrated['wp_user_id'] ) : absint( $migrated );
+		}
+
+		$unique = self::validate_unique_profile_fields( $clean, $user_id );
+		if ( is_wp_error( $unique ) ) {
+			return $unique;
 		}
 
 		$login_owner = get_user_by( 'login', $username );
@@ -182,6 +192,7 @@ class AGUM_Users {
 			'telegram_username'  => $clean['telegram_username'],
 			'telegram_id'        => $clean['telegram_id'],
 			'image_path'         => $clean['image_path'],
+			'profile_photo'     => $clean['profile_photo'],
 			'updated_at'         => current_time( 'mysql' ),
 		);
 	}
@@ -192,7 +203,7 @@ class AGUM_Users {
 	 * @return array
 	 */
 	private static function agum_profile_formats() {
-		return array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		return array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 	}
 
 	/**
@@ -216,6 +227,7 @@ class AGUM_Users {
 			'agum_telegram_username'=> $clean['telegram_username'],
 			'agum_telegram_id'      => $clean['telegram_id'],
 			'agum_profile_image'    => $clean['image_path'],
+			'agum_profile_photo'    => $clean['profile_photo'],
 		);
 		foreach ( $meta as $key => $value ) {
 			update_user_meta( $wp_user_id, $key, $value );
@@ -315,6 +327,54 @@ class AGUM_Users {
 	}
 
 	/**
+	 * Validate AGUM-only unique fields before writing.
+	 *
+	 * @param array $clean Clean payload.
+	 * @param int   $exclude_id Existing AGUM ID to exclude.
+	 * @return true|WP_Error
+	 */
+	private static function validate_unique_profile_fields( $clean, $exclude_id = 0 ) {
+		$checks = array(
+			'student_id'   => __( 'Student ID already exists.', 'amia-gallery-user-manager' ),
+			'admission_no' => __( 'Admission number already exists.', 'amia-gallery-user-manager' ),
+			'username'     => __( 'Username already exists in AGUM profiles.', 'amia-gallery-user-manager' ),
+			'email'        => __( 'Email already exists in AGUM profiles.', 'amia-gallery-user-manager' ),
+		);
+
+		foreach ( $checks as $field => $message ) {
+			if ( self::profile_value_exists( $field, $clean[ $field ], $exclude_id ) ) {
+				return new WP_Error( 'duplicate_' . $field, $message );
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check whether an AGUM profile field value exists.
+	 *
+	 * @param string $field Field name.
+	 * @param string $value Field value.
+	 * @param int    $exclude_id Existing AGUM ID to exclude.
+	 * @return bool
+	 */
+	private static function profile_value_exists( $field, $value, $exclude_id = 0 ) {
+		global $wpdb;
+		$allowed = array( 'student_id', 'admission_no', 'username', 'email' );
+		if ( ! in_array( $field, $allowed, true ) || '' === (string) $value ) {
+			return false;
+		}
+		$table = AGUM_DB::users_table();
+		if ( $exclude_id ) {
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s AND id != %d", $value, absint( $exclude_id ) ) );
+		} else {
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s", $value ) );
+		}
+
+		return (int) $count > 0;
+	}
+
+	/**
 	 * Migrate all unlinked AGUM profiles into WordPress users.
 	 *
 	 * @return array
@@ -362,7 +422,7 @@ class AGUM_Users {
 			$wp_user_id = (int) $wp_user->ID;
 			$linked = true;
 		} else {
-			$email = self::resolve_email_for_create( isset( $profile->email ) ? $profile->email : '', $username );
+			$email = self::resolve_email_for_create( ! empty( $profile->email ) ? $profile->email : agum_unique_placeholder_email( $username ), $username );
 			if ( is_wp_error( $email ) ) {
 				return $email;
 			}
@@ -394,14 +454,15 @@ class AGUM_Users {
 			'phone_number'      => $profile->phone_number,
 			'telegram_username' => $profile->telegram_username,
 			'telegram_id'       => $profile->telegram_id,
-			'image_path'        => $profile->image_path,
+			'image_path'        => $profile->image_path ? $profile->image_path : AGUM_Upload::fallback_image_url(),
+			'profile_photo'    => ! empty( $profile->profile_photo ) ? $profile->profile_photo : ( $profile->image_path ? $profile->image_path : AGUM_Upload::fallback_image_url() ),
 		);
 		self::sync_user_meta( $wp_user_id, $clean, $profile->id );
 		$wpdb->update(
 			AGUM_DB::users_table(),
-			array( 'wp_user_id' => $wp_user_id, 'email' => $clean['email'], 'password_hash' => '', 'updated_at' => current_time( 'mysql' ) ),
+			array( 'wp_user_id' => $wp_user_id, 'email' => $clean['email'], 'image_path' => $clean['image_path'], 'profile_photo' => $clean['profile_photo'], 'password_hash' => '', 'updated_at' => current_time( 'mysql' ) ),
 			array( 'id' => absint( $profile->id ) ),
-			array( '%d', '%s', '%s', '%s' ),
+			array( '%d', '%s', '%s', '%s', '%s', '%s' ),
 			array( '%d' )
 		);
 
@@ -427,7 +488,7 @@ class AGUM_Users {
 			return $email;
 		}
 
-		return agum_unique_placeholder_email( $username );
+		return new WP_Error( 'missing_email', __( 'Email is required.', 'amia-gallery-user-manager' ) );
 	}
 
 	/**
@@ -441,8 +502,7 @@ class AGUM_Users {
 	private static function resolve_email_for_update( $email, $username, $wp_user_id ) {
 		$email = sanitize_email( $email );
 		if ( ! $email ) {
-			$user = get_userdata( $wp_user_id );
-			return $user && $user->user_email ? $user->user_email : agum_unique_placeholder_email( $username );
+			return new WP_Error( 'missing_email', __( 'Email is required.', 'amia-gallery-user-manager' ) );
 		}
 		if ( ! is_email( $email ) ) {
 			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );

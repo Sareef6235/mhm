@@ -69,6 +69,8 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_filter( 'get_avatar_url', array( $this, 'get_agum_avatar_url' ), 10, 3 );
 		add_action( 'init', array( 'AGUM_Security', 'start_secure_session' ), 1 );
 		add_action( 'admin_init', array( $this, 'maybe_sync_native_users' ) );
+		add_action( 'show_user_profile', array( $this, 'render_wp_profile_image' ) );
+		add_action( 'edit_user_profile', array( $this, 'render_wp_profile_image' ) );
 
 		AGUM_Admin_Menu::init();
 		AGUM_Ajax::init();
@@ -139,6 +141,23 @@ final class AMIA_Gallery_User_Manager_Pro {
 		AGUM_DB::create_tables();
 		AGUM_Users::migrate_all_to_wp_users();
 		update_option( 'agum_native_user_sync_complete', current_time( 'mysql' ) );
+	}
+
+	/**
+	 * Render AGUM image preview on the native WordPress profile page.
+	 *
+	 * @param WP_User $user WordPress user.
+	 * @return void
+	 */
+	public function render_wp_profile_image( $user ) {
+		$image = get_user_meta( $user->ID, 'agum_profile_image', true );
+		if ( ! $image ) {
+			$image = AGUM_Upload::fallback_image_url();
+		}
+		?>
+		<h2><?php esc_html_e( 'AMIA Gallery Profile Photo', 'amia-gallery-user-manager' ); ?></h2>
+		<table class="form-table" role="presentation"><tr><th><?php esc_html_e( 'Profile Photo Preview', 'amia-gallery-user-manager' ); ?></th><td><img src="<?php echo esc_url( $image ); ?>" alt="" class="agum-wp-profile-preview" /><p class="description"><?php esc_html_e( 'Managed from AMIA Gallery User Manager Pro.', 'amia-gallery-user-manager' ); ?></p></td></tr></table>
+		<?php
 	}
 
 	/**

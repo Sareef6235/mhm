@@ -19,7 +19,7 @@ AMIA Gallery User Manager Pro provides a modern, glassmorphism WordPress admin e
 3. Open AMIA Gallery in the WordPress admin sidebar.
 
 == CSV Fields ==
-student_id, admission_no, name, class, dob, role, username, email, password, phone_number, telegram_username, telegram_id
+student_id, admission_no, name, class, dob, role, username, email, password, phone_number, image_path, profile_photo, telegram_username, telegram_id
 
 == Changelog ==
 = 1.0.0 =

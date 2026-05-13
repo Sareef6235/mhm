@@ -34,7 +34,7 @@ class AGUM_Admin_Menu {
 	}
 
 	public static function enqueue_assets( $hook ) {
-		if ( false === strpos( $hook, 'agum' ) ) {
+		if ( false === strpos( $hook, 'agum' ) && ! in_array( $hook, array( 'profile.php', 'user-edit.php' ), true ) ) {
 			return;
 		}
 		wp_enqueue_media();
@@ -71,12 +71,54 @@ class AGUM_Admin_Menu {
 		AGUM_Security::require_capability();
 		AGUM_Security::verify_nonce();
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
-		$result = $id ? AGUM_Users::update( $id, $_POST ) : AGUM_Users::create( $_POST );
-		if ( ! is_wp_error( $result ) && ! empty( $_FILES['user_image']['name'] ) ) {
-			AGUM_Upload::handle_user_image( $_FILES['user_image'], $id ? $id : $result );
+		$payload = $_POST;
+
+		$image = self::prepare_profile_photo_payload( $payload, $id );
+		if ( is_wp_error( $image ) ) {
+			set_transient( 'agum_form_error_' . get_current_user_id(), $image->get_error_message(), MINUTE_IN_SECONDS * 5 );
+			wp_safe_redirect( agum_admin_url( 'agum-users', array( 'message' => 'error' ) ) );
+			exit;
+		}
+
+		$result = $id ? AGUM_Users::update( $id, $payload ) : AGUM_Users::create( $payload );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'agum_form_error_' . get_current_user_id(), $result->get_error_message(), MINUTE_IN_SECONDS * 5 );
 		}
 		wp_safe_redirect( agum_admin_url( 'agum-users', array( 'message' => is_wp_error( $result ) ? 'error' : 'saved' ) ) );
 		exit;
+	}
+
+	private static function prepare_profile_photo_payload( &$payload, $id = 0 ) {
+		$has_file = ! empty( $_FILES['profile_photo_file']['name'] );
+		if ( ! $has_file && ! empty( $_FILES['user_image']['name'] ) ) {
+			$_FILES['profile_photo_file'] = $_FILES['user_image'];
+			$has_file = true;
+		}
+
+		if ( $has_file ) {
+			$name = isset( $payload['name'] ) ? sanitize_text_field( wp_unslash( $payload['name'] ) ) : '';
+			$result = AGUM_Upload::handle_named_image( $_FILES['profile_photo_file'], $name, $id );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			$payload['image_path'] = $result['url'];
+			$payload['profile_photo'] = $result['url'];
+			return true;
+		}
+
+		if ( $id ) {
+			$profile = AGUM_Users::get( $id );
+			if ( $profile ) {
+				$payload['image_path'] = ! empty( $payload['image_path'] ) ? $payload['image_path'] : $profile->image_path;
+				$payload['profile_photo'] = ! empty( $payload['profile_photo'] ) ? $payload['profile_photo'] : ( ! empty( $profile->profile_photo ) ? $profile->profile_photo : $profile->image_path );
+			}
+		}
+
+		if ( empty( $payload['image_path'] ) || empty( $payload['profile_photo'] ) ) {
+			return new WP_Error( 'missing_profile_photo', __( 'Profile photo, image path, and profile photo URL are required.', 'amia-gallery-user-manager' ) );
+		}
+
+		return true;
 	}
 
 	public static function handle_csv_import() {

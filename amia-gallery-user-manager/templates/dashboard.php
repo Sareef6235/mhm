@@ -25,6 +25,10 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, email, phone, admission no"><span class="agum-bell">🔔</span><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
 		</header>
 
+		<?php $agum_error = get_transient( 'agum_form_error_' . get_current_user_id() ); if ( $agum_error ) : delete_transient( 'agum_form_error_' . get_current_user_id() ); ?>
+		<section class="agum-card agum-validation-error"><strong><?php esc_html_e( 'Validation error:', 'amia-gallery-user-manager' ); ?></strong> <?php echo esc_html( $agum_error ); ?></section>
+		<?php endif; ?>
+
 		<?php if ( 'dashboard' === $view || 'reports' === $view ) : ?>
 		<section class="agum-grid agum-stats">
 			<div class="agum-card agum-stat"><span>Total Users</span><strong><?php echo esc_html( $stats['total'] ); ?></strong><em>All managed profiles</em></div>
