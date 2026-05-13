@@ -171,7 +171,11 @@ class AGUM_DB {
 			}
 		}
 
+		$existing_columns = $wpdb->get_col( "DESC {$users}", 0 );
 		foreach ( array( 'username', 'email', 'student_id', 'admission_no', 'wp_user_id', 'role', 'phone_number' ) as $index ) {
+			if ( ! in_array( $index, $existing_columns, true ) ) {
+				continue;
+			}
 			$index_row = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$users} WHERE Key_name = %s", $index ) );
 			if ( ! $index_row ) {
 				$wpdb->query( "ALTER TABLE {$users} ADD INDEX {$index} ({$index})" );
@@ -181,18 +185,48 @@ class AGUM_DB {
 		$wpdb->query( "ALTER TABLE {$users} MODIFY id bigint(20) unsigned NOT NULL AUTO_INCREMENT" );
 	}
 
-	public static function sync_dynamic_columns() {
+	public static function sync_dynamic_columns( $previous_columns = array() ) {
 		global $wpdb;
 		$table = self::users_table();
-		$existing = $wpdb->get_col( "DESC {$table}", 0 );
-		foreach ( agum_get_columns() as $column ) {
+		$existing = self::user_columns();
+		$current_columns = agum_get_columns();
+		$current_keys = array_map( 'sanitize_key', wp_list_pluck( $current_columns, 'key' ) );
+
+		foreach ( $current_columns as $column ) {
 			$key = sanitize_key( $column['key'] );
 			if ( ! $key || in_array( $key, $existing, true ) || in_array( $key, array( 'password' ), true ) ) {
 				continue;
 			}
 			$type = self::sql_type_for_column( $column['type'] );
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$key} {$type} NULL" );
+			AGUM_Logger::debug( 'schema_column_added', 'Added AGUM dynamic column.', array( 'column' => $key, 'type' => $type ) );
 		}
+
+		foreach ( (array) $previous_columns as $previous ) {
+			$key = isset( $previous['key'] ) ? sanitize_key( $previous['key'] ) : '';
+			if ( ! $key || in_array( $key, $current_keys, true ) || ! in_array( $key, self::user_columns(), true ) || in_array( $key, self::protected_columns(), true ) ) {
+				continue;
+			}
+			$wpdb->query( "ALTER TABLE {$table} DROP COLUMN {$key}" );
+			AGUM_Logger::debug( 'schema_column_dropped', 'Dropped removed AGUM column.', array( 'column' => $key, 'last_error' => $wpdb->last_error ) );
+		}
+
+		wp_cache_delete( 'agum_user_columns', 'agum' );
+	}
+
+	public static function user_columns() {
+		global $wpdb;
+		$cached = wp_cache_get( 'agum_user_columns', 'agum' );
+		if ( false !== $cached ) { return $cached; }
+		$table = self::users_table();
+		$columns = $wpdb->get_col( "DESC {$table}", 0 );
+		$columns = is_array( $columns ) ? array_map( 'sanitize_key', $columns ) : array();
+		wp_cache_set( 'agum_user_columns', $columns, 'agum' );
+		return $columns;
+	}
+
+	private static function protected_columns() {
+		return array( 'id', 'wp_user_id', 'name', 'username', 'email', 'role', 'image_path', 'profile_photo', 'password_hash', 'otp_code', 'last_login', 'last_seen', 'created_at', 'updated_at' );
 	}
 
 	private static function sql_type_for_column( $type ) {

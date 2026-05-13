@@ -15,7 +15,7 @@ class AGUM_CSV {
 		foreach ( agum_get_columns() as $column ) {
 			if ( ! empty( $column['csv'] ) ) { $headers[] = $column['key']; }
 		}
-		return $headers ? $headers : array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+		return $headers;
 	}
 
 	public static function import( $file ) {
@@ -86,7 +86,7 @@ class AGUM_CSV {
 		global $wpdb;
 		$table = AGUM_DB::users_table();
 		$export_columns = array( 'wp_user_id' );
-		foreach ( agum_get_columns() as $column ) { if ( ! empty( $column['export'] ) && 'password' !== $column['key'] ) { $export_columns[] = $column['key']; } }
+		foreach ( agum_get_columns() as $column ) { if ( ! empty( $column['export'] ) && 'password' !== $column['key'] && in_array( $column['key'], AGUM_DB::user_columns(), true ) ) { $export_columns[] = $column['key']; } }
 		$export_columns[] = 'created_at';
 		$select = implode( ', ', array_map( 'sanitize_key', array_unique( $export_columns ) ) );
 		$rows = $wpdb->get_results( "SELECT {$select} FROM {$table} ORDER BY created_at DESC", ARRAY_A );

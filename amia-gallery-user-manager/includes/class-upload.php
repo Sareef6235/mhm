@@ -168,13 +168,15 @@ class AGUM_Upload {
 	public static function sync_profile_image( $user_id, $url ) {
 		global $wpdb;
 		$url = esc_url_raw( $url );
-		$wpdb->update(
-			AGUM_DB::users_table(),
-			array( 'image_path' => $url, 'profile_photo' => $url, 'updated_at' => current_time( 'mysql' ) ),
-			array( 'id' => absint( $user_id ) ),
-			array( '%s', '%s', '%s' ),
-			array( '%d' )
-		);
+		$data = array( 'updated_at' => current_time( 'mysql' ) );
+		$formats = array( '%s' );
+		foreach ( array( 'image_path', 'profile_photo' ) as $column ) {
+			if ( in_array( $column, AGUM_DB::user_columns(), true ) ) {
+				$data[ $column ] = $url;
+				$formats[] = '%s';
+			}
+		}
+		$wpdb->update( AGUM_DB::users_table(), $data, array( 'id' => absint( $user_id ) ), $formats, array( '%d' ) );
 		$profile = AGUM_Users::get( $user_id );
 		if ( $profile && ! empty( $profile->wp_user_id ) ) {
 			update_user_meta( absint( $profile->wp_user_id ), 'agum_profile_image', $url );

@@ -161,6 +161,7 @@ class AGUM_Admin_Menu {
 		AGUM_Security::require_capability();
 		AGUM_Security::verify_nonce();
 		$current = agum_get_settings();
+		$previous_columns = isset( $current['columns'] ) ? $current['columns'] : array();
 		$settings = array(
 			'items_per_page'      => isset( $_POST['items_per_page'] ) ? absint( $_POST['items_per_page'] ) : $current['items_per_page'],
 			'otp_expiry_minutes'  => isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : $current['otp_expiry_minutes'],
@@ -169,7 +170,8 @@ class AGUM_Admin_Menu {
 			'columns'             => isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : $current['columns'],
 		);
 		update_option( 'agum_settings', $settings );
-		AGUM_DB::sync_dynamic_columns();
+		AGUM_DB::sync_dynamic_columns( $previous_columns );
+		wp_cache_delete( 'agum_settings', 'agum' );
 		AGUM_Logger::log( 'settings_updated', 'Updated plugin settings.' );
 		wp_safe_redirect( agum_admin_url( 'agum-settings', array( 'message' => 'saved' ) ) );
 		exit;

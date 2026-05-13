@@ -25,6 +25,7 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_mark_notifications_read', array( __CLASS__, 'mark_notifications_read' ) );
 		add_action( 'wp_ajax_agum_delete_notification', array( __CLASS__, 'delete_notification' ) );
 		add_action( 'wp_ajax_agum_clear_notifications', array( __CLASS__, 'clear_notifications' ) );
+		add_action( 'wp_ajax_agum_delete_column', array( __CLASS__, 'delete_column' ) );
 	}
 
 	public static function search_users() {
@@ -76,6 +77,7 @@ class AGUM_Ajax {
 
 	public static function clear_activity() {
 		AGUM_Security::ajax_guard();
+		self::require_delete_confirmation();
 		AGUM_Logger::clear();
 		wp_send_json_success( array( 'message' => __( 'Recent activity cleared.', 'amia-gallery-user-manager' ) ) );
 	}
@@ -84,19 +86,24 @@ class AGUM_Ajax {
 	public static function save_settings() {
 		AGUM_Security::ajax_guard();
 		$settings = agum_get_settings();
+		$previous_columns = isset( $settings['columns'] ) ? $settings['columns'] : array();
 		$settings['items_per_page'] = isset( $_POST['items_per_page'] ) ? absint( $_POST['items_per_page'] ) : $settings['items_per_page'];
 		$settings['otp_expiry_minutes'] = isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : $settings['otp_expiry_minutes'];
 		$settings['enable_dark_mode'] = ! empty( $_POST['enable_dark_mode'] ) ? 1 : 0;
 		$settings['columns'] = isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : $settings['columns'];
 		update_option( 'agum_settings', $settings );
-		AGUM_DB::sync_dynamic_columns();
+		AGUM_DB::sync_dynamic_columns( $previous_columns );
+		wp_cache_delete( 'agum_settings', 'agum' );
 		AGUM_Logger::notify( 'settings_saved', __( 'Settings and columns updated.', 'amia-gallery-user-manager' ), $settings );
 		wp_send_json_success( array( 'message' => __( 'Settings saved.', 'amia-gallery-user-manager' ), 'settings' => $settings ) );
 	}
 
 	public static function reset_settings() {
 		AGUM_Security::ajax_guard();
+		$previous_columns = agum_get_columns();
 		update_option( 'agum_settings', agum_default_settings() );
+		AGUM_DB::sync_dynamic_columns( $previous_columns );
+		wp_cache_delete( 'agum_settings', 'agum' );
 		wp_send_json_success( array( 'message' => __( 'Settings reset.', 'amia-gallery-user-manager' ), 'settings' => agum_default_settings() ) );
 	}
 
@@ -128,6 +135,7 @@ class AGUM_Ajax {
 
 	public static function delete_notification() {
 		AGUM_Security::ajax_guard();
+		self::require_delete_confirmation();
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
 		$deleted = $id ? AGUM_Logger::delete_notifications( array( $id ) ) : 0;
 		wp_send_json_success( array( 'deleted' => $deleted, 'message' => __( 'Notification deleted.', 'amia-gallery-user-manager' ) ) );
@@ -135,14 +143,41 @@ class AGUM_Ajax {
 
 	public static function clear_notifications() {
 		AGUM_Security::ajax_guard();
+		self::require_delete_confirmation();
 		AGUM_Logger::clear_notifications();
 		wp_send_json_success( array( 'message' => __( 'All notifications cleared.', 'amia-gallery-user-manager' ) ) );
+	}
+
+	public static function delete_column() {
+		AGUM_Security::ajax_guard();
+		self::require_delete_confirmation();
+		$key = isset( $_POST['key'] ) ? sanitize_key( wp_unslash( $_POST['key'] ) ) : '';
+		if ( ! $key ) {
+			wp_send_json_error( array( 'message' => __( 'Column key is required.', 'amia-gallery-user-manager' ) ), 400 );
+		}
+		$settings = agum_get_settings();
+		$previous_columns = isset( $settings['columns'] ) ? $settings['columns'] : array();
+		$settings['columns'] = array_values( array_filter( $previous_columns, static function ( $column ) use ( $key ) {
+			return ! isset( $column['key'] ) || sanitize_key( $column['key'] ) !== $key;
+		} ) );
+		update_option( 'agum_settings', $settings );
+		AGUM_DB::sync_dynamic_columns( $previous_columns );
+		wp_cache_delete( 'agum_settings', 'agum' );
+		AGUM_Logger::notify( 'settings_saved', sprintf( __( 'Column %s deleted.', 'amia-gallery-user-manager' ), $key ), array( 'column' => $key ) );
+		wp_send_json_success( array( 'message' => sprintf( __( 'Column %s deleted and database synchronized.', 'amia-gallery-user-manager' ), $key ), 'columns' => $settings['columns'] ) );
+	}
+
+	private static function require_delete_confirmation() {
+		$confirm = isset( $_REQUEST['confirm_text'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['confirm_text'] ) ) : '';
+		if ( 'DELETE' !== $confirm ) {
+			wp_send_json_error( array( 'message' => __( 'Type DELETE to confirm deletion.', 'amia-gallery-user-manager' ) ), 400 );
+		}
 	}
 
 	public static function validate_image() {
 		AGUM_Security::ajax_guard();
 		if ( empty( $_FILES['image'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'Profile photo is required.', 'amia-gallery-user-manager' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No image selected.', 'amia-gallery-user-manager' ) ) );
 		}
 		$result = AGUM_Upload::validate_upload_file( $_FILES['image'] );
 		if ( is_wp_error( $result ) ) {

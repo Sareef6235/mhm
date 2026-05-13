@@ -202,7 +202,8 @@ class AGUM_Users {
 		}
 
 		$data = self::agum_profile_data( $clean, $wp_user_id, $email );
-		$result = $wpdb->update( AGUM_DB::users_table(), $data, array( 'id' => $user_id ), self::agum_profile_formats(), array( '%d' ) );
+		$filtered = self::filter_data_formats_by_columns( $data, self::agum_profile_formats() );
+		$result = $wpdb->update( AGUM_DB::users_table(), $filtered['data'], array( 'id' => $user_id ), $filtered['formats'], array( '%d' ) );
 		if ( false === $result ) {
 			return new WP_Error( 'db_update_failed', __( 'Could not update AGUM profile.', 'amia-gallery-user-manager' ) );
 		}
@@ -227,8 +228,9 @@ class AGUM_Users {
 		global $wpdb;
 		$data = self::agum_profile_data( $clean, $wp_user_id, $email );
 		$data['created_at'] = current_time( 'mysql' );
+		$filtered = self::filter_data_formats_by_columns( $data, array_merge( self::agum_profile_formats(), array( '%s' ) ) );
 
-		$result = $wpdb->insert( AGUM_DB::users_table(), $data, array_merge( self::agum_profile_formats(), array( '%s' ) ) );
+		$result = $wpdb->insert( AGUM_DB::users_table(), $filtered['data'], $filtered['formats'] );
 		if ( false === $result ) {
 			AGUM_Logger::debug( 'db_insert_failed', 'Could not create AGUM profile row.', array( 'last_error' => $wpdb->last_error, 'last_query' => $wpdb->last_query, 'wp_user_id' => $wp_user_id, 'username' => $clean['username'], 'email' => $email ) );
 			return new WP_Error( 'db_insert_failed', sprintf( __( 'Could not create AGUM profile. Database error: %s', 'amia-gallery-user-manager' ), $wpdb->last_error ? $wpdb->last_error : __( 'unknown database failure', 'amia-gallery-user-manager' ) ) );
@@ -274,6 +276,28 @@ class AGUM_Users {
 	 */
 	private static function agum_profile_formats() {
 		return array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+	}
+
+	/**
+	 * Remove write data for columns that no longer exist after dynamic field deletion.
+	 *
+	 * @param array $data Data keyed by column.
+	 * @param array $formats Formats aligned with data order.
+	 * @return array
+	 */
+	private static function filter_data_formats_by_columns( $data, $formats ) {
+		$existing = AGUM_DB::user_columns();
+		$filtered_data = array();
+		$filtered_formats = array();
+		$index = 0;
+		foreach ( $data as $key => $value ) {
+			if ( in_array( sanitize_key( $key ), $existing, true ) ) {
+				$filtered_data[ $key ] = $value;
+				$filtered_formats[] = isset( $formats[ $index ] ) ? $formats[ $index ] : '%s';
+			}
+			++$index;
+		}
+		return array( 'data' => $filtered_data, 'formats' => $filtered_formats );
 	}
 
 	/**
@@ -362,7 +386,7 @@ class AGUM_Users {
 		if ( $args['search'] ) {
 			self::dynamic_search_sql( $where, $params, $args['search'] );
 		}
-		if ( $args['role'] ) {
+		if ( $args['role'] && in_array( 'role', AGUM_DB::user_columns(), true ) ) {
 			$where[] = 'role = %s';
 			$params[] = sanitize_key( $args['role'] );
 		}
@@ -437,11 +461,12 @@ class AGUM_Users {
 	public static function stats() {
 		global $wpdb;
 		$table = AGUM_DB::users_table();
+		$columns = AGUM_DB::user_columns();
 		return array(
 			'total'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ),
-			'students' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE role = %s", 'student' ) ),
-			'ustads'   => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE role = %s", 'ustad' ) ),
-			'images'   => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE image_path IS NOT NULL AND image_path != ''" ),
+			'students' => in_array( 'role', $columns, true ) ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE role = %s", 'student' ) ) : 0,
+			'ustads'   => in_array( 'role', $columns, true ) ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE role = %s", 'ustad' ) ) : 0,
+			'images'   => in_array( 'image_path', $columns, true ) ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE image_path IS NOT NULL AND image_path != ''" ) : 0,
 		);
 	}
 
@@ -480,7 +505,7 @@ class AGUM_Users {
 	private static function profile_value_exists( $field, $value, $exclude_id = 0 ) {
 		global $wpdb;
 		$allowed = array( 'student_id', 'admission_no', 'username', 'email' );
-		if ( ! in_array( $field, $allowed, true ) ) {
+		if ( ! in_array( $field, $allowed, true ) || ! in_array( $field, AGUM_DB::user_columns(), true ) ) {
 			return false;
 		}
 
@@ -765,13 +790,10 @@ class AGUM_Users {
 			'remarks'          => ! empty( $profile->remarks ) ? $profile->remarks : '',
 		);
 		self::sync_user_meta( $wp_user_id, $clean, $profile->id );
-		$wpdb->update(
-			AGUM_DB::users_table(),
-			array( 'wp_user_id' => $wp_user_id, 'email' => $clean['email'], 'image_path' => $clean['image_path'], 'profile_photo' => $clean['profile_photo'], 'password_hash' => '', 'updated_at' => current_time( 'mysql' ) ),
-			array( 'id' => absint( $profile->id ) ),
-			array( '%d', '%s', '%s', '%s', '%s', '%s' ),
-			array( '%d' )
-		);
+		$migration_data = array( 'wp_user_id' => $wp_user_id, 'email' => $clean['email'], 'image_path' => $clean['image_path'], 'profile_photo' => $clean['profile_photo'], 'password_hash' => '', 'updated_at' => current_time( 'mysql' ) );
+		$migration_formats = array( '%d', '%s', '%s', '%s', '%s', '%s' );
+		$filtered = self::filter_data_formats_by_columns( $migration_data, $migration_formats );
+		$wpdb->update( AGUM_DB::users_table(), $filtered['data'], array( 'id' => absint( $profile->id ) ), $filtered['formats'], array( '%d' ) );
 
 		return $linked ? array( 'wp_user_id' => $wp_user_id, 'linked' => true ) : $wp_user_id;
 	}
@@ -830,6 +852,7 @@ class AGUM_Users {
 			if ( in_array( $key, agum_core_column_keys(), true ) || 'password' === $key ) { continue; }
 			$value = isset( $payload[ $key ] ) ? wp_unslash( $payload[ $key ] ) : '';
 			$value = 'email' === $column['type'] ? sanitize_email( $value ) : sanitize_textarea_field( $value );
+			if ( ! in_array( $key, AGUM_DB::user_columns(), true ) ) { continue; }
 			$data[ $key ] = $value;
 			$formats[] = 'number' === $column['type'] ? '%f' : ( 'toggle' === $column['type'] ? '%d' : '%s' );
 		}
@@ -884,14 +907,16 @@ class AGUM_Users {
 		);
 		$formats = array( '%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s' );
 		if ( $existing ) {
-			$updated = $wpdb->update( $table, $data, array( 'id' => absint( $existing->id ) ), $formats, array( '%d' ) );
+			$filtered = self::filter_data_formats_by_columns( $data, $formats );
+			$updated = $wpdb->update( $table, $filtered['data'], array( 'id' => absint( $existing->id ) ), $filtered['formats'], array( '%d' ) );
 			if ( false === $updated ) {
 				AGUM_Logger::debug( 'sync_update_failed', 'Failed updating AGUM profile during WP sync.', array( 'wp_user_id' => $user->ID, 'last_error' => $wpdb->last_error ) );
 			}
 			return absint( $existing->id );
 		}
 		$data['created_at'] = current_time( 'mysql' );
-		$inserted = $wpdb->insert( $table, $data, array_merge( $formats, array( '%s' ) ) );
+		$filtered = self::filter_data_formats_by_columns( $data, array_merge( $formats, array( '%s' ) ) );
+		$inserted = $wpdb->insert( $table, $filtered['data'], $filtered['formats'] );
 		if ( false === $inserted ) {
 			AGUM_Logger::debug( 'sync_insert_failed', 'Failed inserting AGUM profile during WP sync.', array( 'wp_user_id' => $user->ID, 'last_error' => $wpdb->last_error ) );
 			return new WP_Error( 'sync_insert_failed', $wpdb->last_error );
