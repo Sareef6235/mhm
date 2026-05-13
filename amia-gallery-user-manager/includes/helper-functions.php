@@ -20,7 +20,47 @@ function agum_default_settings() {
 		'otp_expiry_minutes' => 10,
 		'enable_dark_mode'   => 1,
 		'delete_on_uninstall'=> 0,
+		'columns'            => agum_default_columns(),
 	);
+}
+
+
+/**
+ * Default configurable columns.
+ *
+ * @return array
+ */
+function agum_default_columns() {
+	$keys = array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+	$columns = array();
+	foreach ( $keys as $index => $key ) {
+		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'enabled' => 1, 'order' => $index );
+	}
+	return $columns;
+}
+
+/**
+ * Sanitize configurable column settings.
+ *
+ * @param array $columns Raw columns.
+ * @return array
+ */
+function agum_sanitize_columns( $columns ) {
+	$clean = array();
+	foreach ( (array) $columns as $index => $column ) {
+		$key = isset( $column['key'] ) ? sanitize_key( $column['key'] ) : '';
+		if ( ! $key ) {
+			continue;
+		}
+		$clean[] = array(
+			'key'     => $key,
+			'label'   => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
+			'enabled' => ! empty( $column['enabled'] ) ? 1 : 0,
+			'order'   => isset( $column['order'] ) ? absint( $column['order'] ) : $index,
+		);
+	}
+	usort( $clean, static function ( $a, $b ) { return $a['order'] <=> $b['order']; } );
+	return $clean ? $clean : agum_default_columns();
 }
 
 /**

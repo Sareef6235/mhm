@@ -34,3 +34,22 @@
     });
   });
 })(jQuery);
+(function($){
+  'use strict';
+  $(document).on('click','.agum-clear-activity',function(){
+    if(!confirm('Clear recent activity logs?')){ return; }
+    $.post(agumAdmin.ajaxUrl,{action:'agum_clear_activity',nonce:agumAdmin.nonce}).done(function(resp){
+      if(resp.success){ window.agumToast && window.agumToast(resp.data.message); $('.agum-timeline').empty().append('<div><strong>Cleared</strong><p>No recent activity.</p></div>'); }
+    });
+  });
+  $(document).on('click','.agum-add-column',function(){
+    const wrap=$('#agum-column-manager'); const i=wrap.children().length;
+    wrap.append('<div class="agum-column-row" draggable="true"><span class="agum-drag">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" placeholder="column_key"><input name="columns['+i+'][label]" placeholder="Column label"><label class="agum-check"><input type="checkbox" name="columns['+i+'][enabled]" value="1" checked> Enabled</label><button class="agum-icon agum-remove-column" type="button">×</button></div>');
+  });
+  $(document).on('click','.agum-remove-column',function(){ $(this).closest('.agum-column-row').remove(); updateColumnOrder(); });
+  let dragged=null;
+  $(document).on('dragstart','.agum-column-row',function(){ dragged=this; });
+  $(document).on('dragover','.agum-column-row',function(e){ e.preventDefault(); });
+  $(document).on('drop','.agum-column-row',function(e){ e.preventDefault(); if(dragged&&dragged!==this){ $(this).before(dragged); updateColumnOrder(); } });
+  function updateColumnOrder(){ $('#agum-column-manager .agum-column-row').each(function(i){ $(this).find('.agum-column-order').val(i); }); }
+})(jQuery);

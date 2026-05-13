@@ -19,6 +19,7 @@ class AGUM_Admin_Menu {
 		add_action( 'admin_post_agum_save_settings', array( __CLASS__, 'handle_settings' ) );
 		add_action( 'admin_post_agum_sync_wp_users', array( __CLASS__, 'handle_sync_wp_users' ) );
 		add_action( 'admin_post_agum_media_upload', array( __CLASS__, 'handle_media_upload' ) );
+		add_action( 'admin_post_agum_bulk_image_upload', array( __CLASS__, 'handle_bulk_image_upload' ) );
 	}
 
 	public static function register_menu() {
@@ -27,6 +28,7 @@ class AGUM_Admin_Menu {
 		add_submenu_page( 'agum-dashboard', __( 'Users', 'amia-gallery-user-manager' ), '👥 ' . __( 'Users', 'amia-gallery-user-manager' ), 'manage_options', 'agum-users', array( __CLASS__, 'users_page' ) );
 		add_submenu_page( 'agum-dashboard', __( 'Ustads', 'amia-gallery-user-manager' ), '🧑‍🏫 ' . __( 'Ustads', 'amia-gallery-user-manager' ), 'manage_options', 'agum-ustads', array( __CLASS__, 'ustads_page' ) );
 		add_submenu_page( 'agum-dashboard', __( 'CSV Upload', 'amia-gallery-user-manager' ), '📤 ' . __( 'CSV Upload', 'amia-gallery-user-manager' ), 'manage_options', 'agum-csv', array( __CLASS__, 'csv_page' ) );
+		add_submenu_page( 'agum-dashboard', __( 'Bulk Image Upload', 'amia-gallery-user-manager' ), '🖼 ' . __( 'Bulk Image Upload', 'amia-gallery-user-manager' ), 'manage_options', 'agum-bulk-images', array( __CLASS__, 'bulk_images_page' ) );
 		add_submenu_page( 'agum-dashboard', __( 'Media Upload', 'amia-gallery-user-manager' ), '🖼 ' . __( 'Media Upload', 'amia-gallery-user-manager' ), 'manage_options', 'agum-media', array( __CLASS__, 'media_page' ) );
 		add_submenu_page( 'agum-dashboard', __( 'Reports', 'amia-gallery-user-manager' ), '📊 ' . __( 'Reports', 'amia-gallery-user-manager' ), 'manage_options', 'agum-reports', array( __CLASS__, 'reports_page' ) );
 		add_submenu_page( 'agum-dashboard', __( 'Settings', 'amia-gallery-user-manager' ), '⚙ ' . __( 'Settings', 'amia-gallery-user-manager' ), 'manage_options', 'agum-settings', array( __CLASS__, 'settings_page' ) );
@@ -63,6 +65,7 @@ class AGUM_Admin_Menu {
 	public static function ustads_page() { self::wrap( 'dashboard', array( 'view' => 'users', 'query' => AGUM_Users::query( array( 'role' => 'ustad' ) ), 'role' => 'ustad' ) ); }
 	public static function csv_page() { self::wrap( 'upload', array( 'type' => 'csv' ) ); }
 	public static function media_page() { self::wrap( 'upload', array( 'type' => 'media', 'users' => AGUM_Users::query( array( 'per_page' => 200 ) ) ) ); }
+	public static function bulk_images_page() { self::wrap( 'upload', array( 'type' => 'bulk-images', 'report' => get_transient( 'agum_bulk_image_report_' . get_current_user_id() ) ) ); }
 	public static function reports_page() { self::wrap( 'dashboard', array( 'view' => 'reports', 'stats' => AGUM_Users::stats(), 'logs' => AGUM_Logger::recent( 30 ) ) ); }
 	public static function settings_page() { self::wrap( 'settings', array( 'settings' => agum_get_settings(), 'sync_report' => get_transient( 'agum_sync_report_' . get_current_user_id() ) ) ); }
 	public static function logs_page() { self::wrap( 'dashboard', array( 'view' => 'logs', 'logs' => AGUM_Logger::recent( 50 ) ) ); }
@@ -114,10 +117,6 @@ class AGUM_Admin_Menu {
 			}
 		}
 
-		if ( empty( $payload['image_path'] ) || empty( $payload['profile_photo'] ) ) {
-			return new WP_Error( 'missing_profile_photo', __( 'Profile photo, image path, and profile photo URL are required.', 'amia-gallery-user-manager' ) );
-		}
-
 		return true;
 	}
 
@@ -127,6 +126,16 @@ class AGUM_Admin_Menu {
 		$report = AGUM_CSV::import( $_FILES['csv_file'] );
 		set_transient( 'agum_last_import_report_' . get_current_user_id(), $report, MINUTE_IN_SECONDS * 10 );
 		wp_safe_redirect( agum_admin_url( 'agum-csv', array( 'message' => is_wp_error( $report ) ? 'error' : 'imported' ) ) );
+		exit;
+	}
+
+
+	public static function handle_bulk_image_upload() {
+		AGUM_Security::require_capability();
+		AGUM_Security::verify_nonce();
+		$report = AGUM_Upload::bulk_upload_images( isset( $_FILES['bulk_images'] ) ? $_FILES['bulk_images'] : array() );
+		set_transient( 'agum_bulk_image_report_' . get_current_user_id(), $report, MINUTE_IN_SECONDS * 10 );
+		wp_safe_redirect( agum_admin_url( 'agum-bulk-images', array( 'message' => 'images-uploaded' ) ) );
 		exit;
 	}
 
@@ -156,6 +165,7 @@ class AGUM_Admin_Menu {
 			'otp_expiry_minutes'  => isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : 10,
 			'enable_dark_mode'    => isset( $_POST['enable_dark_mode'] ) ? 1 : 0,
 			'delete_on_uninstall' => isset( $_POST['delete_on_uninstall'] ) ? 1 : 0,
+			'columns'             => isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : agum_default_columns(),
 		);
 		update_option( 'agum_settings', $settings );
 		AGUM_Logger::log( 'settings_updated', 'Updated plugin settings.' );

@@ -57,7 +57,7 @@ class AGUM_Security {
 	 * @return array
 	 */
 	public static function required_user_fields() {
-		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' );
 	}
 
 	/**
@@ -90,10 +90,6 @@ class AGUM_Security {
 		if ( ! $args['require_password'] ) {
 			$required = array_diff( $required, array( 'password' ) );
 		}
-		if ( ! $args['require_image'] ) {
-			$required = array_diff( $required, array( 'image_path', 'profile_photo' ) );
-		}
-
 		$missing = array();
 		foreach ( $required as $field ) {
 			if ( '' === trim( (string) $clean[ $field ] ) ) {
@@ -124,14 +120,12 @@ class AGUM_Security {
 			return new WP_Error( 'weak_password', __( 'Password must be at least 8 characters when changed.', 'amia-gallery-user-manager' ) );
 		}
 
-		if ( $args['require_image'] ) {
-			$image_error = AGUM_Upload::validate_image_reference( $clean['image_path'] );
-			if ( is_wp_error( $image_error ) ) {
-				return $image_error;
-			}
-			$photo_error = AGUM_Upload::validate_image_reference( $clean['profile_photo'] );
-			if ( is_wp_error( $photo_error ) ) {
-				return $photo_error;
+		foreach ( array( 'image_path', 'profile_photo' ) as $image_field ) {
+			if ( '' !== $clean[ $image_field ] ) {
+				$image_error = AGUM_Upload::validate_image_reference( $clean[ $image_field ] );
+				if ( is_wp_error( $image_error ) ) {
+					return $image_error;
+				}
 			}
 		}
 

@@ -50,12 +50,14 @@ class AGUM_CSV {
 				continue;
 			}
 
-			$image_valid = AGUM_Upload::validate_image_reference( $data['image_path'] );
-			$photo_valid = AGUM_Upload::validate_image_reference( $data['profile_photo'] );
-			if ( is_wp_error( $image_valid ) || is_wp_error( $photo_valid ) ) {
-				++$report['skipped'];
-				$report['errors'][] = sprintf( 'Line %d skipped: invalid image_path/profile_photo.', $line );
-				continue;
+			if ( ! empty( $data['image_path'] ) || ! empty( $data['profile_photo'] ) ) {
+				$image_valid = empty( $data['image_path'] ) ? true : AGUM_Upload::validate_image_reference( $data['image_path'] );
+				$photo_valid = empty( $data['profile_photo'] ) ? true : AGUM_Upload::validate_image_reference( $data['profile_photo'] );
+				if ( is_wp_error( $image_valid ) || is_wp_error( $photo_valid ) ) {
+					++$report['skipped'];
+					$report['errors'][] = sprintf( 'Line %d skipped: invalid image_path/profile_photo.', $line );
+					continue;
+				}
 			}
 
 			$result = AGUM_Users::create( $data );

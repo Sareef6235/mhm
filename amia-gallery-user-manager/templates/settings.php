@@ -29,6 +29,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<button class="agum-btn" type="submit">Save Settings</button>
 			</form>
 		</section>
+
+		<section class="agum-card">
+			<div class="agum-section-head"><h2>Role Management</h2><span class="agum-pill">Permissions & Access</span></div>
+			<div class="agum-role-grid">
+				<?php foreach ( array( 'student' => 'subscriber', 'ustad' => 'editor', 'admin' => 'administrator', 'superadmin' => 'administrator' ) as $agum_role => $wp_role ) : ?>
+					<div class="agum-role-card agum-role-<?php echo esc_attr( $agum_role ); ?>"><strong><?php echo esc_html( ucfirst( $agum_role ) ); ?></strong><span>WordPress role: <?php echo esc_html( $wp_role ); ?></span><p><?php echo 'student' === $agum_role ? esc_html__( 'Limited dashboard access and profile visibility.', 'amia-gallery-user-manager' ) : esc_html__( 'Managed role permissions for dashboard and profile operations.', 'amia-gallery-user-manager' ); ?></p></div>
+				<?php endforeach; ?>
+			</div>
+		</section>
+		<section class="agum-card">
+			<div class="agum-section-head"><h2>Column Manager</h2><button class="agum-btn agum-btn-ghost agum-add-column" type="button">+ Add Column</button></div>
+			<p>Drag rows to reorder columns, rename labels, enable/disable columns, or remove optional columns.</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="agum-column-form"><input type="hidden" name="action" value="agum_save_settings"><?php wp_nonce_field( AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ); ?><input type="hidden" name="items_per_page" value="<?php echo esc_attr( $settings['items_per_page'] ); ?>"><input type="hidden" name="otp_expiry_minutes" value="<?php echo esc_attr( $settings['otp_expiry_minutes'] ); ?>"><?php if ( $settings['enable_dark_mode'] ) : ?><input type="hidden" name="enable_dark_mode" value="1"><?php endif; ?><?php if ( $settings['delete_on_uninstall'] ) : ?><input type="hidden" name="delete_on_uninstall" value="1"><?php endif; ?><div class="agum-column-manager" id="agum-column-manager">
+			<?php foreach ( agum_sanitize_columns( $settings['columns'] ) as $index => $column ) : ?>
+				<div class="agum-column-row" draggable="true">
+					<span class="agum-drag">↕</span><input name="columns[<?php echo esc_attr( $index ); ?>][order]" value="<?php echo esc_attr( $index ); ?>" type="hidden" class="agum-column-order"><input name="columns[<?php echo esc_attr( $index ); ?>][key]" value="<?php echo esc_attr( $column['key'] ); ?>" placeholder="column_key"><input name="columns[<?php echo esc_attr( $index ); ?>][label]" value="<?php echo esc_attr( $column['label'] ); ?>" placeholder="Column label"><label class="agum-check"><input type="checkbox" name="columns[<?php echo esc_attr( $index ); ?>][enabled]" value="1" <?php checked( $column['enabled'] ); ?>> Enabled</label><button class="agum-icon agum-remove-column" type="button">×</button>
+				</div>
+			<?php endforeach; ?>
+			</div>
+		</section>
 		<section class="agum-card">
 			<div class="agum-section-head">
 				<div><h2>Sync AGUM Users to WordPress Users</h2><p>Create or link native WordPress users for legacy rows in the AGUM profile table.</p></div>

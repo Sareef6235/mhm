@@ -310,6 +310,56 @@ class AGUM_Users {
 		return array( 'items' => $items, 'total' => $total );
 	}
 
+
+	/**
+	 * Find a user for bulk image matching by filename, username, or display name.
+	 *
+	 * @param string $filename Uploaded filename.
+	 * @return object|null
+	 */
+	public static function find_for_image_upload( $filename ) {
+		global $wpdb;
+		$table = AGUM_DB::users_table();
+		$base = pathinfo( sanitize_file_name( $filename ), PATHINFO_FILENAME );
+		$candidates = array_unique(
+			array_filter(
+				array(
+					agum_normalize_image_basename( $base ),
+					sanitize_user( $base, true ),
+					sanitize_text_field( $base ),
+				)
+			)
+		);
+
+		foreach ( $candidates as $candidate ) {
+			$like = '%' . $wpdb->esc_like( $candidate ) . '%';
+			$user = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE username = %s OR name = %s OR REPLACE(UPPER(name), ' ', '_') = %s OR UPPER(username) = %s OR username LIKE %s OR name LIKE %s ORDER BY id ASC LIMIT 1",
+					$candidate,
+					$candidate,
+					agum_normalize_image_basename( $candidate ),
+					strtoupper( $candidate ),
+					$like,
+					$like
+				)
+			);
+			if ( $user ) {
+				return $user;
+			}
+		}
+
+		$users = $wpdb->get_results( "SELECT * FROM {$table}" );
+		$normalized_base = agum_normalize_image_basename( $base );
+		foreach ( $users as $user ) {
+			if ( $normalized_base === agum_normalize_image_basename( $user->username ) || $normalized_base === agum_normalize_image_basename( $user->name ) ) {
+				return $user;
+			}
+		}
+
+		return null;
+	}
+
 	/**
 	 * Dashboard stats.
 	 *

@@ -36,6 +36,8 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 			<div class="agum-card agum-stat"><span>Ustads</span><strong><?php echo esc_html( $stats['ustads'] ); ?></strong><em>Teaching staff</em></div>
 			<div class="agum-card agum-stat"><span>Mapped Images</span><strong><?php echo esc_html( $stats['images'] ); ?></strong><em>Automatic photo links</em></div>
 		</section>
+
+		<section class="agum-card"><div class="agum-section-head"><h2>Role Overview</h2><span class="agum-pill">Role filters & permissions</span></div><div class="agum-role-grid"><div class="agum-role-card agum-role-student"><strong>Students</strong><span><?php echo esc_html( $stats['students'] ); ?> users</span><p>Subscriber access</p></div><div class="agum-role-card agum-role-ustad"><strong>Ustads</strong><span><?php echo esc_html( $stats['ustads'] ); ?> users</span><p>Editor access</p></div><div class="agum-role-card agum-role-admin"><strong>Admins</strong><span>Administrator</span><p>Management access</p></div><div class="agum-role-card agum-role-superadmin"><strong>Superadmins</strong><span>Administrator</span><p>Full dashboard access</p></div></div></section>
 		<section class="agum-card agum-welcome"><h2>Welcome back</h2><p>Run imports, upload mapped photos, generate OTPs, and monitor security logs from a single modern dashboard.</p><div class="agum-actions"><a class="agum-btn" href="<?php echo agum_admin_url( 'agum-users' ); ?>">Manage Users</a><a class="agum-btn agum-btn-ghost" href="<?php echo agum_admin_url( 'agum-csv' ); ?>">Import CSV</a></div></section>
 		<?php endif; ?>
 
@@ -48,7 +50,7 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 		<?php agum_template( 'edit-user' ); endif; ?>
 
 		<?php if ( 'logs' === $view || 'dashboard' === $view || 'reports' === $view ) : ?>
-		<section class="agum-card"><div class="agum-section-head"><h2>Recent Activity</h2><span class="agum-pill">Live logs</span></div><div class="agum-timeline">
+		<section class="agum-card"><div class="agum-section-head"><h2>Recent Activity</h2><div class="agum-actions"><span class="agum-pill">Live logs</span><button type="button" class="agum-btn agum-danger agum-clear-activity">Clear Recent Activity</button></div></div><div class="agum-timeline">
 		<?php foreach ( (array) $logs as $log ) : ?><div><strong><?php echo esc_html( $log->action ); ?></strong><p><?php echo esc_html( $log->message ); ?></p><time><?php echo esc_html( $log->created_at ); ?></time></div><?php endforeach; ?>
 		</div></section>
 		<?php endif; ?>

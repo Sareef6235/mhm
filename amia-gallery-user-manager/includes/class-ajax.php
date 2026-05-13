@@ -17,6 +17,7 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_generate_otp', array( __CLASS__, 'generate_otp' ) );
 		add_action( 'wp_ajax_agum_upload_image', array( __CLASS__, 'upload_image' ) );
 		add_action( 'wp_ajax_agum_validate_image', array( __CLASS__, 'validate_image' ) );
+		add_action( 'wp_ajax_agum_clear_activity', array( __CLASS__, 'clear_activity' ) );
 	}
 
 	public static function search_users() {
@@ -53,6 +54,13 @@ class AGUM_Ajax {
 		wp_send_json_success( array( 'otp' => AGUM_OTP::generate( $user_id ) ) );
 	}
 
+
+
+	public static function clear_activity() {
+		AGUM_Security::ajax_guard();
+		AGUM_Logger::clear();
+		wp_send_json_success( array( 'message' => __( 'Recent activity cleared.', 'amia-gallery-user-manager' ) ) );
+	}
 
 	public static function validate_image() {
 		AGUM_Security::ajax_guard();

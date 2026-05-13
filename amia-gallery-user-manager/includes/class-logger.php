@@ -34,4 +34,10 @@ class AGUM_Logger {
 		$table = AGUM_DB::logs_table();
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d", absint( $limit ) ) );
 	}
+
+	public static function clear() {
+		global $wpdb;
+		$deleted = $wpdb->query( "TRUNCATE TABLE " . AGUM_DB::logs_table() );
+		return false === $deleted ? 0 : $deleted;
+	}
 }

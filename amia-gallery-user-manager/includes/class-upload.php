@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class AGUM_Upload {
 	const MAX_SIZE = 5242880;
+	const OPTIMIZED_MAX_SIZE = 307200;
 
 	public static function ensure_upload_directories() {
 		$info = agum_upload_info();
@@ -123,6 +124,11 @@ class AGUM_Upload {
 		}
 
 		@chmod( $target, 0644 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$optimized = self::optimize_image( $target, $check['type'] );
+		if ( is_wp_error( $optimized ) ) {
+			return $optimized;
+		}
+		self::generate_thumbnail( $target );
 		$url = trailingslashit( $info['image_url'] ) . $filename;
 
 		if ( $user_id ) {
@@ -174,6 +180,94 @@ class AGUM_Upload {
 			update_user_meta( absint( $profile->wp_user_id ), 'agum_profile_photo', $url );
 			update_user_meta( absint( $profile->wp_user_id ), 'wp_user_avatar', $url );
 		}
+	}
+
+
+	/**
+	 * Optimize uploaded images to a responsive profile size and target 300KB.
+	 *
+	 * @param string $path File path.
+	 * @param string $mime MIME type.
+	 * @return true|WP_Error
+	 */
+	public static function optimize_image( $path, $mime = '' ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$editor = wp_get_image_editor( $path );
+		if ( is_wp_error( $editor ) ) {
+			return $editor;
+		}
+
+		$editor->resize( 900, 900, false );
+		$quality = 86;
+		$result = true;
+		do {
+			if ( method_exists( $editor, 'set_quality' ) ) {
+				$editor->set_quality( $quality );
+			}
+			$result = $editor->save( $path, $mime );
+			clearstatcache( true, $path );
+			$quality -= 8;
+		} while ( ! is_wp_error( $result ) && file_exists( $path ) && filesize( $path ) > self::OPTIMIZED_MAX_SIZE && $quality >= 42 );
+
+		return is_wp_error( $result ) ? $result : true;
+	}
+
+	/**
+	 * Generate optimized thumbnail next to the profile image.
+	 *
+	 * @param string $path File path.
+	 * @return string|WP_Error
+	 */
+	public static function generate_thumbnail( $path ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$editor = wp_get_image_editor( $path );
+		if ( is_wp_error( $editor ) ) {
+			return $editor;
+		}
+		$editor->resize( 160, 160, true );
+		$thumb = trailingslashit( dirname( $path ) ) . pathinfo( $path, PATHINFO_FILENAME ) . '-thumb.' . pathinfo( $path, PATHINFO_EXTENSION );
+		$saved = $editor->save( $thumb );
+		return is_wp_error( $saved ) ? $saved : $thumb;
+	}
+
+	/**
+	 * Bulk upload and auto-match images to AGUM users by username/name.
+	 *
+	 * @param array $files Multiple file input array.
+	 * @return array
+	 */
+	public static function bulk_upload_images( $files ) {
+		$report = array( 'mapped' => 0, 'skipped' => 0, 'errors' => array(), 'items' => array() );
+		if ( empty( $files['name'] ) || ! is_array( $files['name'] ) ) {
+			$report['errors'][] = __( 'No images were selected.', 'amia-gallery-user-manager' );
+			return $report;
+		}
+
+		foreach ( $files['name'] as $index => $name ) {
+			$file = array(
+				'name'     => $files['name'][ $index ],
+				'type'     => $files['type'][ $index ],
+				'tmp_name' => $files['tmp_name'][ $index ],
+				'error'    => $files['error'][ $index ],
+				'size'     => $files['size'][ $index ],
+			);
+			$user = AGUM_Users::find_for_image_upload( $file['name'] );
+			if ( ! $user ) {
+				++$report['skipped'];
+				$report['errors'][] = sprintf( __( '%s skipped: no matching username or name.', 'amia-gallery-user-manager' ), sanitize_file_name( $file['name'] ) );
+				continue;
+			}
+			$result = self::handle_named_image( $file, $user->username ? $user->username : $user->name, $user->id );
+			if ( is_wp_error( $result ) ) {
+				++$report['skipped'];
+				$report['errors'][] = sprintf( '%s: %s', sanitize_file_name( $file['name'] ), $result->get_error_message() );
+				continue;
+			}
+			++$report['mapped'];
+			$report['items'][] = array( 'user' => $user->username, 'filename' => $result['filename'], 'url' => $result['url'] );
+		}
+		AGUM_Logger::log( 'bulk_image_upload', sprintf( 'Bulk image upload mapped %d images and skipped %d.', $report['mapped'], $report['skipped'] ), null, $report );
+		return $report;
 	}
 
 	public static function auto_assign_existing_image( $user_id, $name ) {
