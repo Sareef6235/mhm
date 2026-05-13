@@ -57,12 +57,18 @@ class AGUM_Users {
 			return $clean;
 		}
 
+		if ( '' === $clean['username'] ) {
+			$clean['username'] = self::fallback_username_from_payload( $clean );
+		}
 		$username = self::normalize_username( $clean['username'] );
 		if ( is_wp_error( $username ) ) {
 			AGUM_Logger::debug( 'invalid_username', 'Username normalization failed during create.', array( 'raw_username' => isset( $payload['username'] ) ? wp_unslash( $payload['username'] ) : '' ) );
 			return $username;
 		}
 
+		if ( '' === $clean['email'] ) {
+			$clean['email'] = agum_unique_placeholder_email( $username );
+		}
 		$email = self::normalize_email( $clean['email'] );
 		if ( is_wp_error( $email ) ) {
 			AGUM_Logger::debug( 'invalid_email', 'Email normalization failed during create.', array( 'username' => $username, 'message' => $email->get_error_message() ) );
@@ -85,7 +91,7 @@ class AGUM_Users {
 			return $unique;
 		}
 
-		$password = $clean['password'];
+		$password = $clean['password'] ? $clean['password'] : wp_generate_password( 16, true, true );
 		$user_data = array(
 			'user_login'   => $username,
 			'user_pass'    => $password,
@@ -140,6 +146,12 @@ class AGUM_Users {
 			return $clean;
 		}
 
+		if ( '' === $clean['username'] && ! empty( $existing->username ) ) {
+			$clean['username'] = $existing->username;
+		}
+		if ( '' === $clean['email'] && ! empty( $existing->email ) ) {
+			$clean['email'] = $existing->email;
+		}
 		$username = self::normalize_username( $clean['username'] );
 		if ( is_wp_error( $username ) ) {
 			return $username;
@@ -491,6 +503,27 @@ class AGUM_Users {
 		self::debug_duplicate_check( 'agum_' . $field, $value, $count > 0, array( 'exclude_id' => absint( $exclude_id ) ) );
 
 		return $count > 0;
+	}
+
+
+	/**
+	 * Build a safe fallback username when settings make username optional.
+	 *
+	 * @param array $clean Clean payload.
+	 * @return string
+	 */
+	private static function fallback_username_from_payload( $clean ) {
+		$candidates = array( 'name', 'student_id', 'admission_no', 'email' );
+		foreach ( $candidates as $field ) {
+			if ( ! empty( $clean[ $field ] ) ) {
+				$parts = explode( '@', (string) $clean[ $field ] );
+				$username = self::normalize_username_for_storage( $parts[0] );
+				if ( $username ) {
+					return $username;
+				}
+			}
+		}
+		return 'agum_user_' . strtolower( wp_generate_password( 8, false, false ) );
 	}
 
 	/**

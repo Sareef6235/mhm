@@ -160,12 +160,13 @@ class AGUM_Admin_Menu {
 	public static function handle_settings() {
 		AGUM_Security::require_capability();
 		AGUM_Security::verify_nonce();
+		$current = agum_get_settings();
 		$settings = array(
-			'items_per_page'      => isset( $_POST['items_per_page'] ) ? absint( $_POST['items_per_page'] ) : 20,
-			'otp_expiry_minutes'  => isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : 10,
+			'items_per_page'      => isset( $_POST['items_per_page'] ) ? absint( $_POST['items_per_page'] ) : $current['items_per_page'],
+			'otp_expiry_minutes'  => isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : $current['otp_expiry_minutes'],
 			'enable_dark_mode'    => isset( $_POST['enable_dark_mode'] ) ? 1 : 0,
 			'delete_on_uninstall' => isset( $_POST['delete_on_uninstall'] ) ? 1 : 0,
-			'columns'             => isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : agum_default_columns(),
+			'columns'             => isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : $current['columns'],
 		);
 		update_option( 'agum_settings', $settings );
 		AGUM_DB::sync_dynamic_columns();

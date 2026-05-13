@@ -57,6 +57,10 @@ class AGUM_Ajax {
 
 	public static function delete_users() {
 		AGUM_Security::ajax_guard();
+		$confirm = isset( $_POST['confirm_text'] ) ? sanitize_text_field( wp_unslash( $_POST['confirm_text'] ) ) : '';
+		if ( 'DELETE' !== $confirm ) {
+			wp_send_json_error( array( 'message' => __( 'Type DELETE to confirm deletion.', 'amia-gallery-user-manager' ) ), 400 );
+		}
 		$ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : array();
 		$deleted = AGUM_Users::delete( $ids );
 		wp_send_json_success( array( 'deleted' => $deleted, 'message' => sprintf( __( 'Deleted %d users.', 'amia-gallery-user-manager' ), $deleted ) ) );

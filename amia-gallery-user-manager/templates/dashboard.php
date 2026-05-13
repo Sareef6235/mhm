@@ -57,4 +57,16 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 		<?php endif; ?>
 	</main>
 </div>
+
+<div id="agum-delete-modal" class="agum-modal agum-delete-modal" aria-hidden="true">
+	<div class="agum-modal-panel agum-delete-panel">
+		<button class="agum-modal-close" type="button">×</button>
+		<div class="agum-delete-warning">⚠</div>
+		<h2><?php esc_html_e( 'Confirm permanent deletion', 'amia-gallery-user-manager' ); ?></h2>
+		<p><?php esc_html_e( 'This will delete the selected AGUM profile(s) and linked WordPress user(s). Type DELETE to continue.', 'amia-gallery-user-manager' ); ?></p>
+		<div class="agum-delete-preview"><img src="<?php echo esc_url( AGUM_Upload::fallback_image_url() ); ?>" alt="" class="agum-delete-image"><div><strong class="agum-delete-name"><?php esc_html_e( 'Selected users', 'amia-gallery-user-manager' ); ?></strong><small class="agum-delete-count"></small></div></div>
+		<input type="text" class="agum-delete-confirm-text" placeholder="DELETE" autocomplete="off">
+		<div class="agum-modal-actions"><button type="button" class="agum-btn agum-danger agum-confirm-delete" disabled><?php esc_html_e( 'Delete permanently', 'amia-gallery-user-manager' ); ?></button><button type="button" class="agum-btn agum-btn-ghost agum-modal-close"><?php esc_html_e( 'Cancel', 'amia-gallery-user-manager' ); ?></button></div>
+	</div>
+</div>
 <div class="agum-toast" aria-live="polite"></div>

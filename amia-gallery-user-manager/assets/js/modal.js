@@ -1,8 +1,11 @@
 (function($){'use strict';
   const setRequiredMode = (modal, isEdit) => {
-    modal.find('[name="password"],[name="profile_photo_file"]').prop('required', !isEdit);
-    if (isEdit) { modal.find('[name="password"]').attr('placeholder','Leave blank to keep current password'); }
-    else { modal.find('[name="password"]').attr('placeholder','Minimum 8 characters'); }
+    const password = modal.find('[name="password"]');
+    if (typeof password.data('agum-required') === 'undefined') { password.data('agum-required', password.prop('required') ? 1 : 0); }
+    password.prop('required', !isEdit && password.data('agum-required') === 1);
+    modal.find('[name="profile_photo_file"],[name="image_path"],[name="profile_photo"]').prop('required', false);
+    if (isEdit) { password.attr('placeholder','Leave blank to keep current password'); }
+    else { password.attr('placeholder','Minimum 8 characters'); }
   };
   const fill = (modal, data) => {
     Object.keys(data||{}).forEach(k => modal.find('[name="'+k+'"]').val(data[k]));

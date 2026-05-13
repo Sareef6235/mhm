@@ -63,7 +63,7 @@ class AGUM_Security {
 				$required[] = $column['key'];
 			}
 		}
-		return $required ? $required : array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' );
+		return array_values( array_diff( array_unique( $required ), array( 'image_path', 'profile_photo' ) ) );
 	}
 
 	/**
@@ -104,6 +104,7 @@ class AGUM_Security {
 		if ( ! $args['require_password'] ) {
 			$required = array_diff( $required, array( 'password' ) );
 		}
+		$required = array_diff( $required, array( 'image_path', 'profile_photo' ) );
 		$missing = array();
 		foreach ( $required as $field ) {
 			if ( '' === trim( (string) $clean[ $field ] ) ) {
@@ -124,11 +125,11 @@ class AGUM_Security {
 
 		$clean['username'] = strtolower( sanitize_user( str_replace( ' ', '_', $clean['username'] ), true ) );
 		$clean['email'] = strtolower( sanitize_email( $clean['email'] ) );
-		if ( '' === $clean['email'] || ! is_email( $clean['email'] ) ) {
-			return new WP_Error( 'invalid_email', __( 'A valid email address is required.', 'amia-gallery-user-manager' ) );
+		if ( '' !== $clean['email'] && ! is_email( $clean['email'] ) ) {
+			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
 		}
 
-		if ( $args['require_password'] && strlen( (string) $clean['password'] ) < 8 ) {
+		if ( in_array( 'password', $required, true ) && strlen( (string) $clean['password'] ) < 8 ) {
 			return new WP_Error( 'weak_password', __( 'Password is required and must be at least 8 characters.', 'amia-gallery-user-manager' ) );
 		}
 		if ( ! $args['require_password'] && '' !== $clean['password'] && strlen( (string) $clean['password'] ) < 8 ) {

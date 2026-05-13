@@ -6,7 +6,7 @@
   };
   window.agumToast = toast;
   $(document).on('click','.agum-menu-toggle',()=>$('.agum-app').toggleClass('sidebar-open'));
-  let timer;
+  let timer, pendingDeleteIds=[];
   $(document).on('input change','#agum-search,#agum-role-filter,.agum-live-search',function(){
     clearTimeout(timer); timer=setTimeout(function(){
       const search = $('#agum-search').val() || $('.agum-live-search').val() || '';
@@ -19,14 +19,28 @@
     }, 280);
   });
   $(document).on('change','.agum-select-all',function(){ $('.agum-row-check').prop('checked', this.checked); });
+  function openDeleteModal(ids, row){
+    pendingDeleteIds=ids; const modal=$('#agum-delete-modal');
+    const img=row && row.find('.agum-user-photo').attr('src'); const data=row && row.data('user');
+    modal.find('.agum-delete-image').attr('src', img || modal.find('.agum-delete-image').attr('src'));
+    modal.find('.agum-delete-name').text(data && data.name ? data.name+' (@'+data.username+')' : ids.length+' selected user(s)');
+    modal.find('.agum-delete-count').text(ids.length+' record(s) selected');
+    modal.find('.agum-delete-confirm-text').val(''); modal.find('.agum-confirm-delete').prop('disabled',true);
+    modal.addClass('is-open').attr('aria-hidden','false'); setTimeout(()=>modal.find('.agum-delete-confirm-text').trigger('focus'),80);
+  }
   $(document).on('click','.agum-bulk-delete',function(){
     const ids = $('.agum-row-check:checked').map(function(){return this.value;}).get();
     if(!ids.length){ toast('Select at least one user.', true); return; }
-    if(!confirm(agumAdmin.i18n.confirmDelete)){ return; }
-    $.post(agumAdmin.ajaxUrl,{action:'agum_delete_users',nonce:agumAdmin.nonce,ids:ids}).done(function(resp){
-      if(resp.success){ toast(resp.data.message || ('Deleted '+resp.data.deleted+' users')); $('#agum-search').trigger('input'); window.agumPollNotifications && window.agumPollNotifications(); }
-      else{ toast('Delete failed', true); }
-    });
+    openDeleteModal(ids, null);
+  });
+  $(document).on('click','.agum-delete-user',function(){ const row=$(this).closest('tr'); openDeleteModal([String($(this).data('id'))], row); });
+  $(document).on('input','.agum-delete-confirm-text',function(){ $('.agum-confirm-delete').prop('disabled', $(this).val() !== 'DELETE'); });
+  $(document).on('click','.agum-confirm-delete',function(){
+    const confirmText=$('.agum-delete-confirm-text').val(); if(confirmText!=='DELETE'){ toast('Type DELETE to confirm.', true); return; }
+    $.post(agumAdmin.ajaxUrl,{action:'agum_delete_users',nonce:agumAdmin.nonce,ids:pendingDeleteIds,confirm_text:confirmText}).done(function(resp){
+      if(resp.success){ toast(resp.data.message || 'Users deleted.'); $('#agum-delete-modal').removeClass('is-open').attr('aria-hidden','true'); $('#agum-search').trigger('input'); window.agumPollNotifications && window.agumPollNotifications(); }
+      else{ toast(resp.data && resp.data.message ? resp.data.message : 'Delete failed', true); }
+    }).fail(function(xhr){ toast(xhr.responseJSON && xhr.responseJSON.data ? xhr.responseJSON.data.message : 'Delete failed', true); });
   });
   $(document).on('click','.agum-otp',function(){
     $.post(agumAdmin.ajaxUrl,{action:'agum_generate_otp',nonce:agumAdmin.nonce,user_id:$(this).data('id')}).done(function(resp){
@@ -44,9 +58,9 @@
   });
   $(document).on('click','.agum-add-column',function(){
     const wrap=$('#agum-column-manager'); const i=wrap.children().length;
-    wrap.append('<div class="agum-column-row agum-column-row-advanced" draggable="true"><span class="agum-drag">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" placeholder="column_key"><input name="columns['+i+'][label]" placeholder="Column label"><select name="columns['+i+'][type]"><option>text</option><option>number</option><option>email</option><option>password</option><option>select</option><option>date</option><option>image</option><option>file</option><option>textarea</option><option>toggle</option></select><input name="columns['+i+'][options]" placeholder="Options: A, B, C"><div class="agum-field-flags"><label class="agum-check"><input type="checkbox" name="columns['+i+'][enabled]" value="1" checked> Show</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][required]" value="1"> Required</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][form]" value="1" checked> Add Form</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][edit]" value="1" checked> Edit Modal</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][csv]" value="1" checked> CSV</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][bulk_upload]" value="1" checked> Bulk Upload</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][image_field]" value="1"> Image Field</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][searchable]" value="1"> Search</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][filterable]" value="1"> Filter</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][export]" value="1" checked> Export</label></div><button class="agum-icon agum-remove-column" type="button">×</button></div>');
+    wrap.append('<div class="agum-column-row agum-column-row-advanced" draggable="true"><span class="agum-drag">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" placeholder="column_key"><input name="columns['+i+'][label]" placeholder="Column label"><select name="columns['+i+'][type]"><option>text</option><option>number</option><option>email</option><option>password</option><option>select</option><option>date</option><option>image</option><option>file</option><option>textarea</option><option>toggle</option></select><input name="columns['+i+'][options]" placeholder="Options: A, B, C"><div class="agum-field-flags"><label class="agum-check"><input type="checkbox" name="columns['+i+'][enabled]" value="1" checked> Show</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][required]" value="1"> Required</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][form]" value="1" checked> Add Form</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][edit]" value="1" checked> Edit Modal</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][csv]" value="1" checked> CSV</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][bulk_upload]" value="1" checked> Bulk Upload</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][image_field]" value="1"> Image Field</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][searchable]" value="1"> Search</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][filterable]" value="1"> Filter</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][export]" value="1" checked> Export</label></div><button class="agum-icon agum-remove-column" type="button">×</button></div>'); $('.agum-column-form').trigger('agum-preview-update');
   });
-  $(document).on('click','.agum-remove-column',function(){ $(this).closest('.agum-column-row').remove(); updateColumnOrder(); });
+  $(document).on('click','.agum-remove-column',function(){ $(this).closest('.agum-column-row').remove(); updateColumnOrder(); $('.agum-column-form').trigger('agum-preview-update'); });
   let dragged=null;
   $(document).on('dragstart','.agum-column-row',function(){ dragged=this; });
   $(document).on('dragover','.agum-column-row',function(e){ e.preventDefault(); });
@@ -56,14 +70,30 @@
 
 (function($){
   'use strict';
-  $(document).on('click','.agum-settings-save-ajax',function(e){
-    e.preventDefault(); const form=$(this).closest('form'); const data=form.serializeArray(); data.push({name:'action',value:'agum_save_settings'},{name:'nonce',value:agumAdmin.nonce});
-    $.post(agumAdmin.ajaxUrl,$.param(data)).done(function(r){ window.agumToast && window.agumToast(r.success ? r.data.message : 'Settings save failed', !r.success); });
-  });
+  let saveTimer;
+  function saveSettings(form, silent){
+    const data=form.serializeArray(); data.push({name:'action',value:'agum_save_settings'},{name:'nonce',value:agumAdmin.nonce});
+    $('.agum-autosave-state').text('Saving…');
+    return $.post(agumAdmin.ajaxUrl,$.param(data)).done(function(r){ $('.agum-autosave-state').text(r.success?'Saved':'Save failed'); if(!silent){ window.agumToast && window.agumToast(r.success ? r.data.message : 'Settings save failed', !r.success); } });
+  }
+  function updatePreview(){
+    const rows=$('#agum-column-manager .agum-column-row'); const form=$('.agum-form-preview').empty(); const table=$('.agum-table-preview').empty(); const headers=[];
+    rows.each(function(){
+      const row=$(this), key=row.find('[name$="[key]"]').val(), label=row.find('[name$="[label]"]').val()||key;
+      const enabled=row.find('[name$="[enabled]"]').is(':checked'), required=row.find('[name$="[required]"]').is(':checked'), inForm=row.find('[name$="[form]"]').is(':checked');
+      if(enabled && inForm){ form.append('<span class="agum-preview-field">'+label+(required?' *':'')+'</span>'); }
+      if(enabled){ headers.push(label); }
+    });
+    table.append('<div class="agum-preview-table-row">'+headers.slice(0,8).map(h=>'<span>'+h+'</span>').join('')+'</div>');
+  }
+  $(updatePreview);
+  $(document).on('click','.agum-settings-save-ajax',function(e){ e.preventDefault(); saveSettings($(this).closest('form'), false); });
+  $(document).on('input change','#agum-column-manager input,#agum-column-manager select',function(){ updatePreview(); clearTimeout(saveTimer); const form=$(this).closest('form'); saveTimer=setTimeout(()=>saveSettings(form,true),1200); });
   $(document).on('click','.agum-settings-reset',function(){ if(!confirm('Reset plugin settings?'))return; $.post(agumAdmin.ajaxUrl,{action:'agum_reset_settings',nonce:agumAdmin.nonce}).done(function(r){ window.agumToast && window.agumToast(r.data.message); location.reload(); }); });
   $(document).on('click','.agum-settings-export',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_export_settings',nonce:agumAdmin.nonce}).done(function(r){ if(r.success){ const blob=new Blob([JSON.stringify(r.data.settings,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='agum-settings.json'; a.click(); } }); });
   $(document).on('click','.agum-next-page,.agum-prev-page,.agum-page-number',function(){ const page=$(this).data('page'); if(page){ $('#agum-search').data('page',page).trigger('input'); } });
   $(document).on('change','.agum-per-page',function(){ $('#agum-search').data('per-page',$(this).val()).trigger('input'); });
+  $(document).on('agum-preview-update','.agum-column-form',function(){ if(typeof updatePreview==='function'){ updatePreview(); } });
 })(jQuery);
 (function($){
   'use strict';
