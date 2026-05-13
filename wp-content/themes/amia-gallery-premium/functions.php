@@ -12,10 +12,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'AMIA_PREMIUM_VERSION', '1.1.0' );
 define( 'AMIA_PREMIUM_URI', get_template_directory_uri() );
 define( 'AMIA_PREMIUM_DIR', get_template_directory() );
+if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
+	define( 'DISALLOW_FILE_EDIT', true );
+}
 
 require_once AMIA_PREMIUM_DIR . '/inc/template-functions.php';
 require_once AMIA_PREMIUM_DIR . '/inc/customizer.php';
 require_once AMIA_PREMIUM_DIR . '/inc/plugin-integration.php';
+require_once AMIA_PREMIUM_DIR . '/inc/theme-builder.php';
 
 function amia_premium_setup() {
 	load_theme_textdomain( 'amia-gallery-premium', AMIA_PREMIUM_DIR . '/languages' );
@@ -108,3 +112,15 @@ function amia_premium_clear_activity() {
 	wp_send_json_success( array( 'message' => __( 'Recent activity cleared.', 'amia-gallery-premium' ) ) );
 }
 add_action( 'wp_ajax_amia_clear_activity', 'amia_premium_clear_activity' );
+
+
+function amia_premium_manifest() {
+	wp_send_json( array( 'name' => 'AMIA Gallery', 'short_name' => 'AMIA', 'start_url' => home_url( '/' ), 'display' => 'standalone', 'background_color' => '#0f172a', 'theme_color' => '#2563eb', 'icons' => array( array( 'src' => AMIA_PREMIUM_URI . '/assets/images/default-profile.svg', 'sizes' => '192x192', 'type' => 'image/svg+xml' ) ) ) );
+}
+add_action( 'wp_ajax_nopriv_amia_manifest', 'amia_premium_manifest' );
+add_action( 'wp_ajax_amia_manifest', 'amia_premium_manifest' );
+
+function amia_premium_pwa_tags() {
+	echo '<link rel="manifest" href="' . esc_url( admin_url( 'admin-ajax.php?action=amia_manifest' ) ) . '"><meta name="theme-color" content="#2563eb">';
+}
+add_action( 'wp_head', 'amia_premium_pwa_tags' );

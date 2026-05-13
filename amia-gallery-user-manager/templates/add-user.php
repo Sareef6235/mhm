@@ -10,8 +10,9 @@
 	<label>Email<input name="email" type="email" required></label>
 	<label>Password<input name="password" type="password" minlength="8" required></label>
 	<label>Phone Number<input name="phone_number" type="tel" pattern="\+?[0-9]{7,15}" required></label>
-	<label>Telegram Username<input name="telegram_username" type="text"></label>
-	<label>Telegram ID<input name="telegram_id" type="text"></label>
+	<label>Approval Status<select name="approval_status"><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select></label>
+	<label>User Notes<input name="notes" type="text"></label>
+	<label>Remarks<input name="remarks" type="text"></label>
 	<label>Profile Photo<input name="profile_photo_file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label>
 	<label>Image Path<input name="image_path" type="url" readonly placeholder="Auto-filled after image validation"></label>
 	<label>Profile Photo URL<input name="profile_photo" type="url" readonly placeholder="Auto-filled after image validation"></label>

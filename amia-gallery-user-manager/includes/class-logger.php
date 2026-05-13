@@ -29,10 +29,20 @@ class AGUM_Logger {
 		);
 	}
 
-	public static function recent( $limit = 12 ) {
+	public static function recent( $limit = 12, $paged = 1, $action = '' ) {
 		global $wpdb;
 		$table = AGUM_DB::logs_table();
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d", absint( $limit ) ) );
+		$where = '1=1';
+		$params = array();
+		if ( $action ) { $where .= ' AND action = %s'; $params[] = sanitize_key( $action ); }
+		$offset = max( 0, ( absint( $paged ) - 1 ) * absint( $limit ) );
+		$params[] = absint( $limit ); $params[] = $offset;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d", $params ) );
+	}
+
+	public static function count( $action = '' ) {
+		global $wpdb; $table = AGUM_DB::logs_table();
+		return $action ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE action = %s", sanitize_key( $action ) ) ) : (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
 	}
 
 	public static function clear() {

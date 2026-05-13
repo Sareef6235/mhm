@@ -189,10 +189,11 @@ class AGUM_Users {
 			'email'              => sanitize_email( $email ),
 			'password_hash'      => '',
 			'phone_number'       => $clean['phone_number'],
-			'telegram_username'  => $clean['telegram_username'],
-			'telegram_id'        => $clean['telegram_id'],
 			'image_path'         => $clean['image_path'],
 			'profile_photo'     => $clean['profile_photo'],
+			'approval_status'    => isset( $clean['approval_status'] ) ? $clean['approval_status'] : 'approved',
+			'notes'              => isset( $clean['notes'] ) ? $clean['notes'] : '',
+			'remarks'            => isset( $clean['remarks'] ) ? $clean['remarks'] : '',
 			'updated_at'         => current_time( 'mysql' ),
 		);
 	}
@@ -203,7 +204,7 @@ class AGUM_Users {
 	 * @return array
 	 */
 	private static function agum_profile_formats() {
-		return array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		return array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 	}
 
 	/**
@@ -224,10 +225,11 @@ class AGUM_Users {
 			'agum_role'             => $clean['role'],
 			'agum_phone_number'     => $clean['phone_number'],
 			'phone_number'          => $clean['phone_number'],
-			'agum_telegram_username'=> $clean['telegram_username'],
-			'agum_telegram_id'      => $clean['telegram_id'],
 			'agum_profile_image'    => $clean['image_path'],
 			'agum_profile_photo'    => $clean['profile_photo'],
+			'agum_approval_status'  => isset( $clean['approval_status'] ) ? $clean['approval_status'] : 'approved',
+			'agum_notes'            => isset( $clean['notes'] ) ? $clean['notes'] : '',
+			'agum_remarks'          => isset( $clean['remarks'] ) ? $clean['remarks'] : '',
 		);
 		foreach ( $meta as $key => $value ) {
 			update_user_meta( $wp_user_id, $key, $value );
@@ -502,10 +504,11 @@ class AGUM_Users {
 			'email'             => get_userdata( $wp_user_id )->user_email,
 			'password'          => '',
 			'phone_number'      => $profile->phone_number,
-			'telegram_username' => $profile->telegram_username,
-			'telegram_id'       => $profile->telegram_id,
 			'image_path'        => $profile->image_path ? $profile->image_path : AGUM_Upload::fallback_image_url(),
 			'profile_photo'    => ! empty( $profile->profile_photo ) ? $profile->profile_photo : ( $profile->image_path ? $profile->image_path : AGUM_Upload::fallback_image_url() ),
+			'approval_status'  => ! empty( $profile->approval_status ) ? $profile->approval_status : 'approved',
+			'notes'            => ! empty( $profile->notes ) ? $profile->notes : '',
+			'remarks'          => ! empty( $profile->remarks ) ? $profile->remarks : '',
 		);
 		self::sync_user_meta( $wp_user_id, $clean, $profile->id );
 		$wpdb->update(
@@ -564,4 +567,64 @@ class AGUM_Users {
 
 		return $email;
 	}
+
+	/**
+	 * Sync a WordPress user into AGUM profile storage.
+	 *
+	 * @param int $wp_user_id WordPress user ID.
+	 * @return int|WP_Error
+	 */
+	public static function sync_wp_user( $wp_user_id ) {
+		global $wpdb;
+		$user = get_userdata( absint( $wp_user_id ) );
+		if ( ! $user ) {
+			return new WP_Error( 'missing_wp_user', __( 'WordPress user not found.', 'amia-gallery-user-manager' ) );
+		}
+		$table = AGUM_DB::users_table();
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE wp_user_id = %d OR username = %s OR email = %s LIMIT 1", $user->ID, $user->user_login, $user->user_email ) );
+		$role = get_user_meta( $user->ID, 'agum_role', true );
+		if ( ! $role ) {
+			$role = in_array( 'editor', (array) $user->roles, true ) ? 'ustad' : ( in_array( 'administrator', (array) $user->roles, true ) ? 'admin' : 'student' );
+		}
+		$data = array(
+			'wp_user_id' => $user->ID,
+			'name' => $user->display_name ? $user->display_name : $user->user_login,
+			'username' => $user->user_login,
+			'email' => $user->user_email,
+			'role' => $role,
+			'student_id' => get_user_meta( $user->ID, 'agum_student_id', true ) ?: 'WP-' . $user->ID,
+			'admission_no' => get_user_meta( $user->ID, 'agum_admission_no', true ) ?: 'WP-' . $user->ID,
+			'class' => get_user_meta( $user->ID, 'agum_class', true ) ?: 'General',
+			'dob' => get_user_meta( $user->ID, 'agum_dob', true ) ?: null,
+			'phone_number' => get_user_meta( $user->ID, 'phone_number', true ) ?: '',
+			'image_path' => get_user_meta( $user->ID, 'agum_profile_image', true ) ?: '',
+			'profile_photo' => get_user_meta( $user->ID, 'agum_profile_photo', true ) ?: get_user_meta( $user->ID, 'agum_profile_image', true ),
+			'approval_status' => get_user_meta( $user->ID, 'agum_approval_status', true ) ?: 'approved',
+			'updated_at' => current_time( 'mysql' ),
+		);
+		$formats = array( '%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s' );
+		if ( $existing ) {
+			$wpdb->update( $table, $data, array( 'id' => absint( $existing->id ) ), $formats, array( '%d' ) );
+			return absint( $existing->id );
+		}
+		$data['created_at'] = current_time( 'mysql' );
+		$wpdb->insert( $table, $data, array_merge( $formats, array( '%s' ) ) );
+		return absint( $wpdb->insert_id );
+	}
+
+	public static function record_login( $user_login, $user ) {
+		global $wpdb;
+		self::sync_wp_user( $user->ID );
+		$wpdb->update( AGUM_DB::users_table(), array( 'last_login' => current_time( 'mysql' ), 'last_seen' => current_time( 'mysql' ) ), array( 'wp_user_id' => absint( $user->ID ) ), array( '%s', '%s' ), array( '%d' ) );
+		update_user_meta( $user->ID, 'agum_last_login', current_time( 'mysql' ) );
+		AGUM_Logger::log( 'user_login', sprintf( 'User %s logged in.', $user_login ), null, array( 'wp_user_id' => $user->ID ) );
+	}
+
+	public static function record_logout() {
+		$user_id = get_current_user_id();
+		if ( $user_id ) {
+			AGUM_Logger::log( 'user_logout', sprintf( 'User #%d logged out.', $user_id ), null, array( 'wp_user_id' => $user_id ) );
+		}
+	}
+
 }

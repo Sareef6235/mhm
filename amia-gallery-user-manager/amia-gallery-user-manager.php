@@ -23,6 +23,9 @@ define( 'AGUM_FILE', __FILE__ );
 define( 'AGUM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AGUM_URL', plugin_dir_url( __FILE__ ) );
 define( 'AGUM_SITE_URL', 'https://amiagallery.mmhnu.online/' );
+if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
+	define( 'DISALLOW_FILE_EDIT', true );
+}
 
 require_once AGUM_PATH . 'includes/helper-functions.php';
 require_once AGUM_PATH . 'includes/class-security.php';
@@ -69,6 +72,11 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_filter( 'get_avatar_url', array( $this, 'get_agum_avatar_url' ), 10, 3 );
 		add_action( 'init', array( 'AGUM_Security', 'start_secure_session' ), 1 );
 		add_action( 'admin_init', array( $this, 'maybe_sync_native_users' ) );
+		add_action( 'user_register', array( $this, 'sync_wp_user_to_agum' ) );
+		add_action( 'profile_update', array( $this, 'sync_wp_user_to_agum' ) );
+		add_action( 'delete_user', array( $this, 'delete_agum_for_wp_user' ) );
+		add_action( 'wp_login', array( 'AGUM_Users', 'record_login' ), 10, 2 );
+		add_action( 'wp_logout', array( 'AGUM_Users', 'record_logout' ) );
 		add_action( 'show_user_profile', array( $this, 'render_wp_profile_image' ) );
 		add_action( 'edit_user_profile', array( $this, 'render_wp_profile_image' ) );
 
@@ -123,6 +131,16 @@ final class AMIA_Gallery_User_Manager_Pro {
 				esc_html__( 'Visit plugin site', 'amia-gallery-user-manager' )
 			),
 		);
+	}
+
+
+	public function sync_wp_user_to_agum( $user_id ) {
+		AGUM_Users::sync_wp_user( $user_id );
+	}
+
+	public function delete_agum_for_wp_user( $user_id ) {
+		global $wpdb;
+		$wpdb->delete( AGUM_DB::users_table(), array( 'wp_user_id' => absint( $user_id ) ), array( '%d' ) );
 	}
 
 	/**

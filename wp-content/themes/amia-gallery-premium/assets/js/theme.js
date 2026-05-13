@@ -12,4 +12,4 @@
   $(document).on('change','input[type=file][multiple]',function(){const grid=$(this).closest('form').find('.amia-preview-grid').empty();Array.from(this.files||[]).forEach(file=>{if(file.type.indexOf('image/')===0){grid.append($('<img loading="lazy" alt="Preview">').attr('src',URL.createObjectURL(file)))}})});
   $(document).on('submit','.amia-upload-zone',function(){$(this).find('.amia-progress span').animate({width:'100%'},1000)});
   const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('amia-animate')}}),{threshold:.12});document.querySelectorAll('.amia-card,.amia-section').forEach(el=>obs.observe(el));
-})(jQuery);
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/wp-content/themes/amia-gallery-premium/assets/js/sw.js').catch(()=>{});} })(jQuery);

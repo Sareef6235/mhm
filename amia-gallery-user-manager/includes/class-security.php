@@ -78,7 +78,7 @@ class AGUM_Security {
 		);
 		$fields = array(
 			'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email',
-			'password', 'phone_number', 'telegram_username', 'telegram_id', 'image_path', 'profile_photo',
+			'password', 'phone_number', 'image_path', 'profile_photo', 'approval_status', 'notes', 'remarks',
 		);
 		$clean = array();
 		foreach ( $fields as $field ) {
@@ -128,6 +128,8 @@ class AGUM_Security {
 				}
 			}
 		}
+
+		$clean['approval_status'] = in_array( $clean['approval_status'], array( 'approved', 'pending', 'rejected' ), true ) ? $clean['approval_status'] : 'approved';
 
 		$clean['role'] = in_array( $clean['role'], array( 'student', 'ustad', 'admin', 'superadmin', 'staff' ), true ) ? $clean['role'] : 'student';
 		return $clean;

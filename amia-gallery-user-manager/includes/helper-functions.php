@@ -31,7 +31,7 @@ function agum_default_settings() {
  * @return array
  */
 function agum_default_columns() {
-	$keys = array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+	$keys = array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo', 'approval_status', 'notes', 'remarks' );
 	$columns = array();
 	foreach ( $keys as $index => $key ) {
 		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'enabled' => 1, 'order' => $index );

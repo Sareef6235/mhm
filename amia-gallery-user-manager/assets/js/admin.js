@@ -53,3 +53,15 @@
   $(document).on('drop','.agum-column-row',function(e){ e.preventDefault(); if(dragged&&dragged!==this){ $(this).before(dragged); updateColumnOrder(); } });
   function updateColumnOrder(){ $('#agum-column-manager .agum-column-row').each(function(i){ $(this).find('.agum-column-order').val(i); }); }
 })(jQuery);
+
+(function($){
+  'use strict';
+  $(document).on('click','.agum-settings-save-ajax',function(e){
+    e.preventDefault(); const form=$(this).closest('form'); const data=form.serializeArray(); data.push({name:'action',value:'agum_save_settings'},{name:'nonce',value:agumAdmin.nonce});
+    $.post(agumAdmin.ajaxUrl,$.param(data)).done(function(r){ window.agumToast && window.agumToast(r.success ? r.data.message : 'Settings save failed', !r.success); });
+  });
+  $(document).on('click','.agum-settings-reset',function(){ if(!confirm('Reset plugin settings?'))return; $.post(agumAdmin.ajaxUrl,{action:'agum_reset_settings',nonce:agumAdmin.nonce}).done(function(r){ window.agumToast && window.agumToast(r.data.message); location.reload(); }); });
+  $(document).on('click','.agum-settings-export',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_export_settings',nonce:agumAdmin.nonce}).done(function(r){ if(r.success){ const blob=new Blob([JSON.stringify(r.data.settings,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='agum-settings.json'; a.click(); } }); });
+  $(document).on('click','.agum-next-page,.agum-prev-page,.agum-page-number',function(){ const page=$(this).data('page'); if(page){ $('#agum-search').data('page',page).trigger('input'); } });
+  $(document).on('change','.agum-per-page',function(){ $('#agum-search').data('per-page',$(this).val()).trigger('input'); });
+})(jQuery);

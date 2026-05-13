@@ -18,6 +18,9 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_upload_image', array( __CLASS__, 'upload_image' ) );
 		add_action( 'wp_ajax_agum_validate_image', array( __CLASS__, 'validate_image' ) );
 		add_action( 'wp_ajax_agum_clear_activity', array( __CLASS__, 'clear_activity' ) );
+		add_action( 'wp_ajax_agum_save_settings', array( __CLASS__, 'save_settings' ) );
+		add_action( 'wp_ajax_agum_reset_settings', array( __CLASS__, 'reset_settings' ) );
+		add_action( 'wp_ajax_agum_export_settings', array( __CLASS__, 'export_settings' ) );
 	}
 
 	public static function search_users() {
@@ -26,10 +29,14 @@ class AGUM_Ajax {
 			'search' => isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : '',
 			'role' => isset( $_GET['role'] ) ? sanitize_key( wp_unslash( $_GET['role'] ) ) : '',
 			'paged' => isset( $_GET['paged'] ) ? absint( $_GET['paged'] ) : 1,
+			'per_page' => isset( $_GET['per_page'] ) ? absint( $_GET['per_page'] ) : 20,
 		) );
 		ob_start();
 		agum_template( 'tables', array( 'users' => $result['items'] ) );
-		wp_send_json_success( array( 'html' => ob_get_clean(), 'total' => $result['total'] ) );
+		$page = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+		$per_page = isset( $_GET['per_page'] ) ? max( 1, absint( $_GET['per_page'] ) ) : 20;
+		$total_pages = max( 1, (int) ceil( $result['total'] / $per_page ) );
+		wp_send_json_success( array( 'html' => ob_get_clean(), 'total' => $result['total'], 'page' => $page, 'total_pages' => $total_pages ) );
 	}
 
 	public static function save_user() {
@@ -60,6 +67,29 @@ class AGUM_Ajax {
 		AGUM_Security::ajax_guard();
 		AGUM_Logger::clear();
 		wp_send_json_success( array( 'message' => __( 'Recent activity cleared.', 'amia-gallery-user-manager' ) ) );
+	}
+
+
+	public static function save_settings() {
+		AGUM_Security::ajax_guard();
+		$settings = agum_get_settings();
+		$settings['items_per_page'] = isset( $_POST['items_per_page'] ) ? absint( $_POST['items_per_page'] ) : $settings['items_per_page'];
+		$settings['otp_expiry_minutes'] = isset( $_POST['otp_expiry_minutes'] ) ? absint( $_POST['otp_expiry_minutes'] ) : $settings['otp_expiry_minutes'];
+		$settings['enable_dark_mode'] = ! empty( $_POST['enable_dark_mode'] ) ? 1 : 0;
+		$settings['columns'] = isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : $settings['columns'];
+		update_option( 'agum_settings', $settings );
+		wp_send_json_success( array( 'message' => __( 'Settings saved.', 'amia-gallery-user-manager' ), 'settings' => $settings ) );
+	}
+
+	public static function reset_settings() {
+		AGUM_Security::ajax_guard();
+		update_option( 'agum_settings', agum_default_settings() );
+		wp_send_json_success( array( 'message' => __( 'Settings reset.', 'amia-gallery-user-manager' ), 'settings' => agum_default_settings() ) );
+	}
+
+	public static function export_settings() {
+		AGUM_Security::ajax_guard();
+		wp_send_json_success( array( 'settings' => agum_get_settings() ) );
 	}
 
 	public static function validate_image() {
