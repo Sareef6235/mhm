@@ -72,7 +72,8 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_filter( 'plugin_action_links_' . plugin_basename( AGUM_FILE ), array( $this, 'plugin_action_links' ) );
 		add_filter( 'get_avatar_url', array( $this, 'get_agum_avatar_url' ), 10, 3 );
 		add_action( 'init', array( 'AGUM_Security', 'start_secure_session' ), 1 );
-		add_action( 'admin_init', array( $this, 'maybe_repair_schema' ) );
+		add_action( 'admin_init', 'agum_migrate_phone_required_setting' );
+			add_action( 'admin_init', array( $this, 'maybe_repair_schema' ) );
 		add_action( 'admin_init', array( $this, 'maybe_sync_native_users' ) );
 		add_action( 'user_register', array( $this, 'sync_wp_user_to_agum' ) );
 		add_action( 'profile_update', array( $this, 'sync_wp_user_to_agum' ) );

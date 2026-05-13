@@ -4,6 +4,7 @@
     if (typeof password.data('agum-required') === 'undefined') { password.data('agum-required', password.prop('required') ? 1 : 0); }
     password.prop('required', !isEdit && password.data('agum-required') === 1);
     modal.find('[name="profile_photo_file"],[name="image_path"],[name="profile_photo"]').prop('required', false);
+    modal.find('.agum-field').each(function(){ const field=$(this); const show=isEdit ? field.data('agum-edit') !== 0 : field.data('agum-form') !== 0; field.toggle(show); field.find(':input').prop('disabled', !show); });
     if (isEdit) { password.attr('placeholder','Leave blank to keep current password'); }
     else { password.attr('placeholder','Minimum 8 characters'); }
   };

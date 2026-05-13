@@ -43,7 +43,7 @@ class AGUM_CSV {
 			}
 			$data = wp_parse_args( $data, array_fill_keys( self::expected_headers(), '' ) );
 			$missing = array();
-			foreach ( AGUM_Security::required_user_fields() as $required_field ) {
+			foreach ( AGUM_Security::required_user_fields( 'csv' ) as $required_field ) {
 				if ( empty( $data[ $required_field ] ) ) {
 					$missing[] = $required_field;
 				}
@@ -65,6 +65,7 @@ class AGUM_CSV {
 			}
 
 			$data['source_system'] = 'CSV Upload';
+			$data['validation_context'] = 'csv';
 			$result = AGUM_Users::create( $data );
 			if ( is_wp_error( $result ) ) {
 				++$report['skipped'];

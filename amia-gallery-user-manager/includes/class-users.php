@@ -862,9 +862,11 @@ class AGUM_Users {
 	public static function dynamic_search_sql( &$where, &$params, $search ) {
 		global $wpdb;
 		$parts = array(); $like = '%' . $wpdb->esc_like( sanitize_text_field( $search ) ) . '%';
+		$existing_columns = AGUM_DB::user_columns();
 		foreach ( agum_get_columns() as $column ) {
-			if ( empty( $column['searchable'] ) || in_array( $column['key'], array( 'password' ), true ) ) { continue; }
-			$parts[] = $column['key'] . ' LIKE %s'; $params[] = $like;
+			$key = sanitize_key( $column['key'] );
+			if ( empty( $column['searchable'] ) || in_array( $key, array( 'password' ), true ) || ! in_array( $key, $existing_columns, true ) ) { continue; }
+			$parts[] = $key . ' LIKE %s'; $params[] = $like;
 		}
 		if ( $parts ) { $where[] = '(' . implode( ' OR ', $parts ) . ')'; }
 	}

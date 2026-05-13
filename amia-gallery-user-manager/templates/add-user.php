@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-$columns = agum_get_columns_for_context( 'form' );
+$columns = array_values( array_filter( agum_get_columns(), static function ( $column ) { return ! empty( $column['enabled'] ) && ( ! empty( $column['form'] ) || ! empty( $column['edit'] ) ); } ) );
 ?>
 <div class="agum-form-grid">
 <?php

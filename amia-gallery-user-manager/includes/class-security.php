@@ -56,14 +56,21 @@ class AGUM_Security {
 	 *
 	 * @return array
 	 */
-	public static function required_user_fields() {
+	public static function required_user_fields( $context = '' ) {
+		$context = sanitize_key( $context );
 		$required = array();
 		foreach ( agum_get_columns() as $column ) {
-			if ( ! empty( $column['enabled'] ) && ! empty( $column['required'] ) ) {
-				$required[] = $column['key'];
+			if ( empty( $column['enabled'] ) || empty( $column['required'] ) ) {
+				continue;
 			}
+			if ( $context && array_key_exists( $context, $column ) && empty( $column[ $context ] ) ) {
+				continue;
+			}
+			$required[] = $column['key'];
 		}
-		return array_values( array_diff( array_unique( $required ), array( 'image_path', 'profile_photo' ) ) );
+
+		$required = array_values( array_diff( array_unique( $required ), array( 'image_path', 'profile_photo' ) ) );
+		return $required;
 	}
 
 	/**
@@ -79,7 +86,8 @@ class AGUM_Security {
 			array(
 				'require_password' => true,
 				'require_image'    => true,
-				'existing_id'      => 0,
+				'existing_id'         => 0,
+				'validation_context' => '',
 			)
 		);
 		$fields = array(
@@ -100,7 +108,8 @@ class AGUM_Security {
 			$clean[ $field ] = 'image_path' === $field || 'profile_photo' === $field ? esc_url_raw( $value ) : sanitize_text_field( $value );
 		}
 
-		$required = self::required_user_fields();
+		$context = ! empty( $args['validation_context'] ) ? sanitize_key( $args['validation_context'] ) : ( isset( $payload['validation_context'] ) ? sanitize_key( wp_unslash( $payload['validation_context'] ) ) : '' );
+		$required = self::required_user_fields( $context );
 		if ( ! $args['require_password'] ) {
 			$required = array_diff( $required, array( 'password' ) );
 		}

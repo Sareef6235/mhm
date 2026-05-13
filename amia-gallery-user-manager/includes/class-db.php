@@ -188,27 +188,36 @@ class AGUM_DB {
 	public static function sync_dynamic_columns( $previous_columns = array() ) {
 		global $wpdb;
 		$table = self::users_table();
+		wp_cache_delete( 'agum_user_columns', 'agum' );
 		$existing = self::user_columns();
 		$current_columns = agum_get_columns();
 		$current_keys = array_map( 'sanitize_key', wp_list_pluck( $current_columns, 'key' ) );
 
 		foreach ( $current_columns as $column ) {
-			$key = sanitize_key( $column['key'] );
-			if ( ! $key || in_array( $key, $existing, true ) || in_array( $key, array( 'password' ), true ) ) {
+			$key = isset( $column['key'] ) ? sanitize_key( $column['key'] ) : '';
+			if ( ! $key || 'password' === $key || ! preg_match( '/^[a-z_][a-z0-9_]*$/', $key ) ) {
 				continue;
 			}
-			$type = self::sql_type_for_column( $column['type'] );
-			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$key} {$type} NULL" );
-			AGUM_Logger::debug( 'schema_column_added', 'Added AGUM dynamic column.', array( 'column' => $key, 'type' => $type ) );
+			$type = self::sql_type_for_column( isset( $column['type'] ) ? $column['type'] : 'text' );
+			if ( ! in_array( $key, $existing, true ) ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$key} {$type} NULL" );
+				AGUM_Logger::debug( 'schema_column_added', 'Added AGUM dynamic column.', array( 'column' => $key, 'type' => $type, 'last_error' => $wpdb->last_error ) );
+				wp_cache_delete( 'agum_user_columns', 'agum' );
+				$existing = self::user_columns();
+			} elseif ( ! in_array( $key, self::protected_columns(), true ) ) {
+				$wpdb->query( "ALTER TABLE {$table} MODIFY {$key} {$type} NULL" );
+				AGUM_Logger::debug( 'schema_column_modified', 'Synchronized AGUM dynamic column type.', array( 'column' => $key, 'type' => $type, 'last_error' => $wpdb->last_error ) );
+			}
 		}
 
 		foreach ( (array) $previous_columns as $previous ) {
 			$key = isset( $previous['key'] ) ? sanitize_key( $previous['key'] ) : '';
-			if ( ! $key || in_array( $key, $current_keys, true ) || ! in_array( $key, self::user_columns(), true ) || in_array( $key, self::protected_columns(), true ) ) {
+			if ( ! $key || in_array( $key, $current_keys, true ) || ! in_array( $key, self::user_columns(), true ) || in_array( $key, self::protected_columns(), true ) || ! preg_match( '/^[a-z_][a-z0-9_]*$/', $key ) ) {
 				continue;
 			}
 			$wpdb->query( "ALTER TABLE {$table} DROP COLUMN {$key}" );
 			AGUM_Logger::debug( 'schema_column_dropped', 'Dropped removed AGUM column.', array( 'column' => $key, 'last_error' => $wpdb->last_error ) );
+			wp_cache_delete( 'agum_user_columns', 'agum' );
 		}
 
 		wp_cache_delete( 'agum_user_columns', 'agum' );
@@ -226,7 +235,7 @@ class AGUM_DB {
 	}
 
 	private static function protected_columns() {
-		return array( 'id', 'wp_user_id', 'name', 'username', 'email', 'role', 'image_path', 'profile_photo', 'password_hash', 'otp_code', 'last_login', 'last_seen', 'created_at', 'updated_at' );
+		return array_values( array_unique( array_merge( agum_core_column_keys(), array( 'password_hash' ) ) ) );
 	}
 
 	private static function sql_type_for_column( $type ) {
