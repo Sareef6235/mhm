@@ -21,6 +21,8 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_save_settings', array( __CLASS__, 'save_settings' ) );
 		add_action( 'wp_ajax_agum_reset_settings', array( __CLASS__, 'reset_settings' ) );
 		add_action( 'wp_ajax_agum_export_settings', array( __CLASS__, 'export_settings' ) );
+		add_action( 'wp_ajax_agum_get_notifications', array( __CLASS__, 'get_notifications' ) );
+		add_action( 'wp_ajax_agum_mark_notifications_read', array( __CLASS__, 'mark_notifications_read' ) );
 	}
 
 	public static function search_users() {
@@ -78,6 +80,8 @@ class AGUM_Ajax {
 		$settings['enable_dark_mode'] = ! empty( $_POST['enable_dark_mode'] ) ? 1 : 0;
 		$settings['columns'] = isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : $settings['columns'];
 		update_option( 'agum_settings', $settings );
+		AGUM_DB::sync_dynamic_columns();
+		AGUM_Logger::notify( 'settings_saved', __( 'Settings and columns updated.', 'amia-gallery-user-manager' ), $settings );
 		wp_send_json_success( array( 'message' => __( 'Settings saved.', 'amia-gallery-user-manager' ), 'settings' => $settings ) );
 	}
 
@@ -90,6 +94,20 @@ class AGUM_Ajax {
 	public static function export_settings() {
 		AGUM_Security::ajax_guard();
 		wp_send_json_success( array( 'settings' => agum_get_settings() ) );
+	}
+
+
+	public static function get_notifications() {
+		AGUM_Security::ajax_guard();
+		$items = AGUM_Logger::notifications( 12 );
+		$unread = count( AGUM_Logger::notifications( 50, true ) );
+		wp_send_json_success( array( 'items' => $items, 'unread' => $unread ) );
+	}
+
+	public static function mark_notifications_read() {
+		AGUM_Security::ajax_guard();
+		AGUM_Logger::mark_notifications_read();
+		wp_send_json_success( array( 'message' => __( 'Notifications marked as read.', 'amia-gallery-user-manager' ) ) );
 	}
 
 	public static function validate_image() {

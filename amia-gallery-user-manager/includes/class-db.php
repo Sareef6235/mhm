@@ -25,6 +25,16 @@ class AGUM_DB {
 		return $wpdb->prefix . 'agum_otps';
 	}
 
+	public static function notifications_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'agum_notifications';
+	}
+
+	public static function jobs_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'agum_jobs';
+	}
+
 	public static function create_tables() {
 		global $wpdb;
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -33,6 +43,8 @@ class AGUM_DB {
 		$users   = self::users_table();
 		$logs    = self::logs_table();
 		$otps    = self::otp_table();
+		$notifications = self::notifications_table();
+		$jobs = self::jobs_table();
 
 		dbDelta( "CREATE TABLE {$users} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -93,5 +105,63 @@ class AGUM_DB {
 			KEY user_id (user_id),
 			KEY expires_at (expires_at)
 		) {$charset};" );
+
+
+		dbDelta( "CREATE TABLE {$notifications} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			type varchar(80) DEFAULT 'info' NOT NULL,
+			title varchar(190) NOT NULL,
+			message text NOT NULL,
+			is_read tinyint(1) DEFAULT 0 NOT NULL,
+			user_id bigint(20) unsigned NULL,
+			context longtext NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY is_read (is_read),
+			KEY type (type),
+			KEY created_at (created_at)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$jobs} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			job_type varchar(120) NOT NULL,
+			status varchar(30) DEFAULT 'pending' NOT NULL,
+			payload longtext NULL,
+			attempts int(11) DEFAULT 0 NOT NULL,
+			created_at datetime NOT NULL,
+			started_at datetime NULL,
+			completed_at datetime NULL,
+			PRIMARY KEY  (id),
+			KEY job_type (job_type),
+			KEY status (status),
+			KEY created_at (created_at)
+		) {$charset};" );
+
+		self::sync_dynamic_columns();
+	}
+
+	public static function sync_dynamic_columns() {
+		global $wpdb;
+		$table = self::users_table();
+		$existing = $wpdb->get_col( "DESC {$table}", 0 );
+		foreach ( agum_get_columns() as $column ) {
+			$key = sanitize_key( $column['key'] );
+			if ( ! $key || in_array( $key, $existing, true ) || in_array( $key, array( 'password' ), true ) ) {
+				continue;
+			}
+			$type = self::sql_type_for_column( $column['type'] );
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$key} {$type} NULL" );
+		}
+	}
+
+	private static function sql_type_for_column( $type ) {
+		switch ( $type ) {
+			case 'number': return 'decimal(20,4)';
+			case 'date': return 'date';
+			case 'textarea': return 'text';
+			case 'toggle': return 'tinyint(1) DEFAULT 0';
+			default: return 'text';
+		}
 	}
 }
+

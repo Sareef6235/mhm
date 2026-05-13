@@ -20,6 +20,8 @@ function agum_default_settings() {
 		'otp_expiry_minutes' => 10,
 		'enable_dark_mode'   => 1,
 		'delete_on_uninstall'=> 0,
+		'upload_limit_mb'    => 5,
+		'image_limit_kb'     => 300,
 		'columns'            => agum_default_columns(),
 	);
 }
@@ -34,9 +36,58 @@ function agum_default_columns() {
 	$keys = array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo', 'approval_status', 'notes', 'remarks' );
 	$columns = array();
 	foreach ( $keys as $index => $key ) {
-		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'enabled' => 1, 'order' => $index );
+		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'type' => agum_default_column_type( $key ), 'enabled' => 1, 'required' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' ), true ) ? 1 : 0, 'bulk' => 1, 'searchable' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'username', 'email', 'phone_number' ), true ) ? 1 : 0, 'filterable' => in_array( $key, array( 'role', 'class', 'approval_status' ), true ) ? 1 : 0, 'export' => 1, 'order' => $index );
 	}
 	return $columns;
+}
+
+
+/**
+ * Default field type for a column key.
+ *
+ * @param string $key Column key.
+ * @return string
+ */
+function agum_default_column_type( $key ) {
+	if ( false !== strpos( $key, 'email' ) ) { return 'email'; }
+	if ( false !== strpos( $key, 'password' ) ) { return 'password'; }
+	if ( false !== strpos( $key, 'date' ) || 'dob' === $key ) { return 'date'; }
+	if ( false !== strpos( $key, 'image' ) || false !== strpos( $key, 'photo' ) ) { return 'image'; }
+	if ( in_array( $key, array( 'role', 'approval_status' ), true ) ) { return 'select'; }
+	if ( in_array( $key, array( 'notes', 'remarks' ), true ) ) { return 'textarea'; }
+	return 'text';
+}
+
+/**
+ * Return enabled columns, sorted by order.
+ *
+ * @return array
+ */
+function agum_get_columns() {
+	$settings = agum_get_settings();
+	return agum_sanitize_columns( isset( $settings['columns'] ) ? $settings['columns'] : array() );
+}
+
+/**
+ * Get one column definition by key.
+ *
+ * @param string $key Column key.
+ * @return array|null
+ */
+function agum_get_column( $key ) {
+	foreach ( agum_get_columns() as $column ) {
+		if ( $column['key'] === $key ) { return $column; }
+	}
+	return null;
+}
+
+/**
+ * Built-in columns handled by AGUM core schema.
+ *
+ * @return array
+ */
+function agum_core_column_keys() {
+	return array( 'id', 'wp_user_id', 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo', 'otp_code', 'last_login', 'last_seen', 'approval_status', 'notes', 'remarks', 'created_at', 'updated_at' );
 }
 
 /**
@@ -52,11 +103,20 @@ function agum_sanitize_columns( $columns ) {
 		if ( ! $key ) {
 			continue;
 		}
+		$type = isset( $column['type'] ) ? sanitize_key( $column['type'] ) : agum_default_column_type( $key );
+		$type = in_array( $type, array( 'text', 'number', 'email', 'password', 'select', 'date', 'image', 'file', 'textarea', 'toggle' ), true ) ? $type : 'text';
 		$clean[] = array(
-			'key'     => $key,
-			'label'   => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
-			'enabled' => ! empty( $column['enabled'] ) ? 1 : 0,
-			'order'   => isset( $column['order'] ) ? absint( $column['order'] ) : $index,
+			'key'        => $key,
+			'label'      => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
+			'type'       => $type,
+			'enabled'    => ! empty( $column['enabled'] ) ? 1 : 0,
+			'required'   => ! empty( $column['required'] ) ? 1 : 0,
+			'bulk'       => ! empty( $column['bulk'] ) ? 1 : 0,
+			'searchable' => ! empty( $column['searchable'] ) ? 1 : 0,
+			'filterable' => ! empty( $column['filterable'] ) ? 1 : 0,
+			'export'     => isset( $column['export'] ) ? ( ! empty( $column['export'] ) ? 1 : 0 ) : 1,
+			'options'    => isset( $column['options'] ) ? sanitize_text_field( $column['options'] ) : '',
+			'order'      => isset( $column['order'] ) ? absint( $column['order'] ) : $index,
 		);
 	}
 	usort( $clean, static function ( $a, $b ) { return $a['order'] <=> $b['order']; } );

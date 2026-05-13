@@ -65,6 +65,7 @@ class AGUM_Users {
 		}
 
 		self::sync_user_meta( $wp_user_id, $clean, $result );
+		self::save_dynamic_columns( $result, $payload );
 		AGUM_Upload::auto_assign_existing_image( $result, $clean['name'] );
 		AGUM_Logger::log( 'wp_user_created', sprintf( 'Created WordPress user %s', $username ), $result, array( 'wp_user_id' => $wp_user_id ) );
 		return $result;
@@ -142,6 +143,7 @@ class AGUM_Users {
 		}
 
 		self::sync_user_meta( $wp_user_id, $clean, $user_id );
+		self::save_dynamic_columns( $user_id, $payload );
 		AGUM_Upload::auto_assign_existing_image( $user_id, $clean['name'] );
 		AGUM_Logger::log( 'wp_user_updated', sprintf( 'Updated WordPress user %s', $username ), $user_id, array( 'wp_user_id' => $wp_user_id ) );
 		return true;
@@ -291,9 +293,7 @@ class AGUM_Users {
 		$params = array();
 
 		if ( $args['search'] ) {
-			$like = '%' . $wpdb->esc_like( sanitize_text_field( $args['search'] ) ) . '%';
-			$where[] = '(name LIKE %s OR username LIKE %s OR email LIKE %s OR phone_number LIKE %s OR admission_no LIKE %s OR student_id LIKE %s)';
-			$params = array_merge( $params, array( $like, $like, $like, $like, $like, $like ) );
+			self::dynamic_search_sql( $where, $params, $args['search'] );
 		}
 		if ( $args['role'] ) {
 			$where[] = 'role = %s';
@@ -566,6 +566,30 @@ class AGUM_Users {
 		}
 
 		return $email;
+	}
+
+	public static function save_dynamic_columns( $agum_id, $payload ) {
+		global $wpdb;
+		$data = array(); $formats = array();
+		foreach ( agum_get_columns() as $column ) {
+			$key = $column['key'];
+			if ( in_array( $key, agum_core_column_keys(), true ) || 'password' === $key ) { continue; }
+			$value = isset( $payload[ $key ] ) ? wp_unslash( $payload[ $key ] ) : '';
+			$value = 'email' === $column['type'] ? sanitize_email( $value ) : sanitize_textarea_field( $value );
+			$data[ $key ] = $value;
+			$formats[] = 'number' === $column['type'] ? '%f' : ( 'toggle' === $column['type'] ? '%d' : '%s' );
+		}
+		if ( $data ) { $wpdb->update( AGUM_DB::users_table(), $data, array( 'id' => absint( $agum_id ) ), $formats, array( '%d' ) ); }
+	}
+
+	public static function dynamic_search_sql( &$where, &$params, $search ) {
+		global $wpdb;
+		$parts = array(); $like = '%' . $wpdb->esc_like( sanitize_text_field( $search ) ) . '%';
+		foreach ( agum_get_columns() as $column ) {
+			if ( empty( $column['searchable'] ) || in_array( $column['key'], array( 'password' ), true ) ) { continue; }
+			$parts[] = $column['key'] . ' LIKE %s'; $params[] = $like;
+		}
+		if ( $parts ) { $where[] = '(' . implode( ' OR ', $parts ) . ')'; }
 	}
 
 	/**

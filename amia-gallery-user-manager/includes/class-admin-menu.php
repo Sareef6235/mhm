@@ -168,6 +168,7 @@ class AGUM_Admin_Menu {
 			'columns'             => isset( $_POST['columns'] ) ? agum_sanitize_columns( wp_unslash( $_POST['columns'] ) ) : agum_default_columns(),
 		);
 		update_option( 'agum_settings', $settings );
+		AGUM_DB::sync_dynamic_columns();
 		AGUM_Logger::log( 'settings_updated', 'Updated plugin settings.' );
 		wp_safe_redirect( agum_admin_url( 'agum-settings', array( 'message' => 'saved' ) ) );
 		exit;

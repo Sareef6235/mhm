@@ -65,3 +65,10 @@
   $(document).on('click','.agum-next-page,.agum-prev-page,.agum-page-number',function(){ const page=$(this).data('page'); if(page){ $('#agum-search').data('page',page).trigger('input'); } });
   $(document).on('change','.agum-per-page',function(){ $('#agum-search').data('per-page',$(this).val()).trigger('input'); });
 })(jQuery);
+(function($){
+  'use strict';
+  function renderNotifications(items){ const box=$('.agum-notifications'); if(!box.length){return;} box.empty(); (items||[]).forEach(function(n){box.append('<div class="agum-notification"><strong>'+n.title+'</strong><p>'+n.message+'</p></div>');}); }
+  function pollNotifications(){ if(typeof agumAdmin==='undefined'){return;} $.get(agumAdmin.ajaxUrl,{action:'agum_get_notifications',nonce:agumAdmin.nonce}).done(function(r){ if(r.success){ $('.agum-notification-count').text(r.data.unread); renderNotifications(r.data.items); } }); }
+  setInterval(pollNotifications,30000); $(pollNotifications);
+  $(document).on('click','.agum-mark-notifications-read',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_mark_notifications_read',nonce:agumAdmin.nonce}).done(pollNotifications); });
+})(jQuery);

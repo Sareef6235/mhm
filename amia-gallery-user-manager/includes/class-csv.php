@@ -11,7 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class AGUM_CSV {
 	public static function expected_headers() {
-		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
+		$headers = array();
+		foreach ( agum_get_columns() as $column ) {
+			if ( ! empty( $column['bulk'] ) ) { $headers[] = $column['key']; }
+		}
+		return $headers ? $headers : array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
 	}
 
 	public static function import( $file ) {
@@ -70,6 +74,7 @@ class AGUM_CSV {
 		}
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
+		AGUM_Background::enqueue( 'csv_processed', $report );
 		AGUM_Logger::log( 'csv_import', sprintf( 'CSV import completed: %d created, %d skipped.', $report['created'], $report['skipped'] ), null, $report );
 		return $report;
 	}
@@ -79,13 +84,17 @@ class AGUM_CSV {
 		AGUM_Security::verify_nonce();
 		global $wpdb;
 		$table = AGUM_DB::users_table();
-		$rows = $wpdb->get_results( "SELECT wp_user_id, student_id, admission_no, name, class, dob, role, username, email, phone_number, image_path, profile_photo, created_at FROM {$table} ORDER BY created_at DESC", ARRAY_A );
+		$export_columns = array( 'wp_user_id' );
+		foreach ( agum_get_columns() as $column ) { if ( ! empty( $column['export'] ) && 'password' !== $column['key'] ) { $export_columns[] = $column['key']; } }
+		$export_columns[] = 'created_at';
+		$select = implode( ', ', array_map( 'sanitize_key', array_unique( $export_columns ) ) );
+		$rows = $wpdb->get_results( "SELECT {$select} FROM {$table} ORDER BY created_at DESC", ARRAY_A );
 
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename=amia-gallery-users-' . gmdate( 'Y-m-d' ) . '.csv' );
 		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
-		fputcsv( $out, array( 'wp_user_id', 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'phone_number', 'image_path', 'profile_photo', 'created_at' ) );
+		fputcsv( $out, array_unique( $export_columns ) );
 		foreach ( $rows as $row ) {
 			fputcsv( $out, $row );
 		}

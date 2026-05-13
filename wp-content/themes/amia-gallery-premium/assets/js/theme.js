@@ -13,3 +13,5 @@
   $(document).on('submit','.amia-upload-zone',function(){$(this).find('.amia-progress span').animate({width:'100%'},1000)});
   const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('amia-animate')}}),{threshold:.12});document.querySelectorAll('.amia-card,.amia-section').forEach(el=>obs.observe(el));
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/wp-content/themes/amia-gallery-premium/assets/js/sw.js').catch(()=>{});} })(jQuery);
+if('Notification' in window && Notification.permission==='default'){document.addEventListener('click',()=>Notification.requestPermission(),{once:true});}
+let touchStartX=0;document.addEventListener('touchstart',e=>{touchStartX=e.changedTouches[0].screenX},{passive:true});document.addEventListener('touchend',e=>{if(e.changedTouches[0].screenX-touchStartX>90){document.querySelector('.amia-primary-menu')?.classList.add('is-open')}},{passive:true});

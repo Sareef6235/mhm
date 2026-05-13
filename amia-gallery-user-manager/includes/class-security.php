@@ -57,7 +57,13 @@ class AGUM_Security {
 	 * @return array
 	 */
 	public static function required_user_fields() {
-		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' );
+		$required = array();
+		foreach ( agum_get_columns() as $column ) {
+			if ( ! empty( $column['enabled'] ) && ! empty( $column['required'] ) ) {
+				$required[] = $column['key'];
+			}
+		}
+		return $required ? $required : array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' );
 	}
 
 	/**
@@ -80,6 +86,10 @@ class AGUM_Security {
 			'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email',
 			'password', 'phone_number', 'image_path', 'profile_photo', 'approval_status', 'notes', 'remarks',
 		);
+		foreach ( agum_get_columns() as $column ) {
+			$fields[] = $column['key'];
+		}
+		$fields = array_values( array_unique( $fields ) );
 		$clean = array();
 		foreach ( $fields as $field ) {
 			$value = isset( $payload[ $field ] ) ? wp_unslash( $payload[ $field ] ) : '';

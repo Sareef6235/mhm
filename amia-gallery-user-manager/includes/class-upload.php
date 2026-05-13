@@ -129,6 +129,7 @@ class AGUM_Upload {
 			return $optimized;
 		}
 		self::generate_thumbnail( $target );
+		AGUM_Background::enqueue( 'image_optimized', array( 'file' => $filename, 'path' => $target ) );
 		$url = trailingslashit( $info['image_url'] ) . $filename;
 
 		if ( $user_id ) {

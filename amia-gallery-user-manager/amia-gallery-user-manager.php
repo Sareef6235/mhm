@@ -31,6 +31,7 @@ require_once AGUM_PATH . 'includes/helper-functions.php';
 require_once AGUM_PATH . 'includes/class-security.php';
 require_once AGUM_PATH . 'includes/class-db.php';
 require_once AGUM_PATH . 'includes/class-logger.php';
+require_once AGUM_PATH . 'includes/class-background.php';
 require_once AGUM_PATH . 'includes/class-upload.php';
 require_once AGUM_PATH . 'includes/class-users.php';
 require_once AGUM_PATH . 'includes/class-csv.php';
@@ -82,6 +83,7 @@ final class AMIA_Gallery_User_Manager_Pro {
 
 		AGUM_Admin_Menu::init();
 		AGUM_Ajax::init();
+		AGUM_Background::init();
 	}
 
 	/**
@@ -229,6 +231,7 @@ final class AMIA_Gallery_User_Manager_Pro {
 	 */
 	public static function deactivate() {
 		wp_clear_scheduled_hook( 'agum_cleanup_expired_otps' );
+		wp_clear_scheduled_hook( 'agum_process_jobs' );
 		flush_rewrite_rules();
 	}
 }

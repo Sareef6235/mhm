@@ -1,20 +1,14 @@
-<?php if ( ! defined( 'ABSPATH' ) ) { exit; } ?>
+<?php if ( ! defined( 'ABSPATH' ) ) { exit; } $columns = agum_get_columns(); ?>
 <div class="agum-form-grid">
-	<label>Student ID<input name="student_id" type="text" required></label>
-	<label>Admission No<input name="admission_no" type="text" required></label>
-	<label>Name<input name="name" type="text" required></label>
-	<label>Class<input name="class" type="text" required></label>
-	<label>DOB<input name="dob" type="date" required></label>
-	<label>Role<select name="role" required><option value="student">Student → Subscriber</option><option value="ustad">Ustad → Editor</option><option value="admin">Admin → Administrator</option><option value="superadmin">Superadmin → Administrator</option><option value="staff">Staff → Subscriber</option></select></label>
-	<label>Username<input name="username" type="text" required></label>
-	<label>Email<input name="email" type="email" required></label>
-	<label>Password<input name="password" type="password" minlength="8" required></label>
-	<label>Phone Number<input name="phone_number" type="tel" pattern="\+?[0-9]{7,15}" required></label>
-	<label>Approval Status<select name="approval_status"><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select></label>
-	<label>User Notes<input name="notes" type="text"></label>
-	<label>Remarks<input name="remarks" type="text"></label>
+<?php foreach ( $columns as $column ) : if ( empty( $column['enabled'] ) ) { continue; } $key = $column['key']; if ( in_array( $key, array( 'image_path', 'profile_photo' ), true ) ) { continue; } $required = ! empty( $column['required'] ) ? 'required' : ''; ?>
+	<label><?php echo esc_html( $column['label'] ); ?>
+	<?php if ( 'role' === $key ) : ?><select name="role" <?php echo esc_attr( $required ); ?>><option value="student">Student → Subscriber</option><option value="ustad">Ustad → Editor</option><option value="admin">Admin → Administrator</option><option value="superadmin">Superadmin → Administrator</option><option value="staff">Staff → Subscriber</option></select>
+	<?php elseif ( 'approval_status' === $key ) : ?><select name="approval_status" <?php echo esc_attr( $required ); ?>><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select>
+	<?php elseif ( 'textarea' === $column['type'] ) : ?><textarea name="<?php echo esc_attr( $key ); ?>" <?php echo esc_attr( $required ); ?>></textarea>
+	<?php elseif ( 'toggle' === $column['type'] ) : ?><input name="<?php echo esc_attr( $key ); ?>" type="checkbox" value="1">
+	<?php else : ?><input name="<?php echo esc_attr( $key ); ?>" type="<?php echo esc_attr( in_array( $column['type'], array( 'email', 'password', 'number', 'date' ), true ) ? $column['type'] : 'text' ); ?>" <?php echo 'password' === $key ? 'minlength="8"' : ''; ?> <?php echo esc_attr( $required ); ?>><?php endif; ?></label>
+<?php endforeach; ?>
 	<label>Profile Photo<input name="profile_photo_file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label>
-	<label>Image Path<input name="image_path" type="url" readonly placeholder="Auto-filled after image validation"></label>
-	<label>Profile Photo URL<input name="profile_photo" type="url" readonly placeholder="Auto-filled after image validation"></label>
-</div>
-<div class="agum-preview"><img class="agum-profile-preview" src="<?php echo esc_url( AGUM_Upload::fallback_image_url() ); ?>" alt="Profile preview"></div>
+	<label>Image Path<input name="image_path" type="url" readonly placeholder="Auto-filled after image upload"></label>
+	<label>Profile Photo URL<input name="profile_photo" type="url" readonly placeholder="Auto-filled after image upload"></label>
+</div><div class="agum-preview"><img class="agum-profile-preview" src="<?php echo esc_url( AGUM_Upload::fallback_image_url() ); ?>" alt="Profile preview"></div>
