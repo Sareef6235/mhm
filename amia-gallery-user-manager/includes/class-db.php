@@ -36,6 +36,7 @@ class AGUM_DB {
 
 		dbDelta( "CREATE TABLE {$users} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			wp_user_id bigint(20) unsigned NULL,
 			student_id varchar(80) DEFAULT '' NOT NULL,
 			admission_no varchar(80) DEFAULT '' NOT NULL,
 			name varchar(190) NOT NULL,
@@ -43,16 +44,20 @@ class AGUM_DB {
 			dob date NULL,
 			role varchar(40) DEFAULT 'student' NOT NULL,
 			username varchar(120) NOT NULL,
+			email varchar(190) DEFAULT '' NOT NULL,
 			password_hash varchar(255) DEFAULT '' NOT NULL,
 			phone_number varchar(20) DEFAULT '' NOT NULL,
 			telegram_username varchar(120) DEFAULT '' NOT NULL,
 			telegram_id varchar(120) DEFAULT '' NOT NULL,
 			image_path text NULL,
+			otp_code varchar(20) DEFAULT '' NOT NULL,
 			last_login datetime NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY username (username),
+			UNIQUE KEY wp_user_id (wp_user_id),
+			KEY email (email),
 			KEY role (role),
 			KEY phone_number (phone_number),
 			KEY admission_no (admission_no)

@@ -19,8 +19,11 @@ AMIA Gallery User Manager Pro provides a modern, glassmorphism WordPress admin e
 3. Open AMIA Gallery in the WordPress admin sidebar.
 
 == CSV Fields ==
-student_id, admission_no, name, class, dob, role, username, password, phone_number, telegram_username, telegram_id
+student_id, admission_no, name, class, dob, role, username, email, password, phone_number, telegram_username, telegram_id
 
 == Changelog ==
 = 1.0.0 =
 Initial premium plugin release.
+
+== WordPress Native Users ==
+All plugin-created users are native WordPress users created with wp_insert_user(), linked through wp_user_id, and extended with AGUM metadata in wp_usermeta. Legacy AGUM rows can be migrated from Settings with "Sync AGUM Users to WordPress Users".

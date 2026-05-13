@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class AGUM_CSV {
 	public static function expected_headers() {
-		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'password', 'phone_number', 'telegram_username', 'telegram_id' );
+		return array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'telegram_username', 'telegram_id' );
 	}
 
 	public static function import( $file ) {
@@ -37,6 +37,7 @@ class AGUM_CSV {
 			foreach ( $headers as $index => $header ) {
 				$data[ $header ] = isset( $row[ $index ] ) ? $row[ $index ] : '';
 			}
+			$data = wp_parse_args( $data, array( 'name' => '', 'username' => '', 'email' => '', 'phone_number' => '', 'password' => '' ) );
 			if ( ! $data['name'] || ! $data['username'] || ! agum_is_valid_phone( $data['phone_number'] ) ) {
 				++$report['skipped'];
 				$report['errors'][] = sprintf( 'Line %d skipped: missing name/username or invalid phone.', $line );
@@ -62,13 +63,13 @@ class AGUM_CSV {
 		AGUM_Security::verify_nonce();
 		global $wpdb;
 		$table = AGUM_DB::users_table();
-		$rows = $wpdb->get_results( "SELECT student_id, admission_no, name, class, dob, role, username, phone_number, telegram_username, telegram_id, image_path, created_at FROM {$table} ORDER BY created_at DESC", ARRAY_A );
+		$rows = $wpdb->get_results( "SELECT wp_user_id, student_id, admission_no, name, class, dob, role, username, email, phone_number, telegram_username, telegram_id, image_path, created_at FROM {$table} ORDER BY created_at DESC", ARRAY_A );
 
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename=amia-gallery-users-' . gmdate( 'Y-m-d' ) . '.csv' );
 		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
-		fputcsv( $out, array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'phone_number', 'telegram_username', 'telegram_id', 'image_path', 'created_at' ) );
+		fputcsv( $out, array( 'wp_user_id', 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'phone_number', 'telegram_username', 'telegram_id', 'image_path', 'created_at' ) );
 		foreach ( $rows as $row ) {
 			fputcsv( $out, $row );
 		}

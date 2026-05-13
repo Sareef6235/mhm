@@ -16,4 +16,5 @@ if ( ! empty( $settings['delete_on_uninstall'] ) ) {
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agum_logs" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agum_otps" );
 	delete_option( 'agum_settings' );
+	delete_option( 'agum_native_user_sync_complete' );
 }

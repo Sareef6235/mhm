@@ -66,7 +66,9 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2 );
 		add_filter( 'plugin_action_links_' . plugin_basename( AGUM_FILE ), array( $this, 'plugin_action_links' ) );
+		add_filter( 'get_avatar_url', array( $this, 'get_agum_avatar_url' ), 10, 3 );
 		add_action( 'init', array( 'AGUM_Security', 'start_secure_session' ), 1 );
+		add_action( 'admin_init', array( $this, 'maybe_sync_native_users' ) );
 
 		AGUM_Admin_Menu::init();
 		AGUM_Ajax::init();
@@ -122,6 +124,54 @@ final class AMIA_Gallery_User_Manager_Pro {
 	}
 
 	/**
+	 * Ensure existing AGUM-only profiles are migrated after plugin updates.
+	 *
+	 * @return void
+	 */
+	public function maybe_sync_native_users() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( get_option( 'agum_native_user_sync_complete' ) ) {
+			return;
+		}
+
+		AGUM_DB::create_tables();
+		AGUM_Users::migrate_all_to_wp_users();
+		update_option( 'agum_native_user_sync_complete', current_time( 'mysql' ) );
+	}
+
+	/**
+	 * Use AGUM profile image as the WordPress avatar URL when available.
+	 *
+	 * @param string $url Default avatar URL.
+	 * @param mixed  $id_or_email User identifier.
+	 * @param array  $args Avatar args.
+	 * @return string
+	 */
+	public function get_agum_avatar_url( $url, $id_or_email, $args ) {
+		$user = false;
+		if ( is_numeric( $id_or_email ) ) {
+			$user = get_user_by( 'id', absint( $id_or_email ) );
+		} elseif ( $id_or_email instanceof WP_User ) {
+			$user = $id_or_email;
+		} elseif ( $id_or_email instanceof WP_Comment ) {
+			$user = get_user_by( 'email', $id_or_email->comment_author_email );
+		} elseif ( is_string( $id_or_email ) ) {
+			$user = get_user_by( 'email', $id_or_email );
+		}
+
+		if ( $user ) {
+			$image = get_user_meta( $user->ID, 'agum_profile_image', true );
+			if ( $image ) {
+				return esc_url_raw( $image );
+			}
+		}
+
+		return $url;
+	}
+
+	/**
 	 * Activation callback.
 	 *
 	 * @return void
@@ -129,6 +179,8 @@ final class AMIA_Gallery_User_Manager_Pro {
 	public static function activate() {
 		AGUM_DB::create_tables();
 		AGUM_Upload::ensure_upload_directories();
+		AGUM_Users::migrate_all_to_wp_users();
+		update_option( 'agum_native_user_sync_complete', current_time( 'mysql' ) );
 		add_option( 'agum_settings', agum_default_settings() );
 		flush_rewrite_rules();
 	}

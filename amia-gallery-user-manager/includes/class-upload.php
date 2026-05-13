@@ -70,6 +70,11 @@ class AGUM_Upload {
 
 		if ( $user_id ) {
 			$wpdb->update( AGUM_DB::users_table(), array( 'image_path' => esc_url_raw( $url ), 'updated_at' => current_time( 'mysql' ) ), array( 'id' => absint( $user_id ) ), array( '%s', '%s' ), array( '%d' ) );
+			$profile = AGUM_Users::get( $user_id );
+			if ( $profile && ! empty( $profile->wp_user_id ) ) {
+				update_user_meta( absint( $profile->wp_user_id ), 'agum_profile_image', esc_url_raw( $url ) );
+				update_user_meta( absint( $profile->wp_user_id ), 'wp_user_avatar', esc_url_raw( $url ) );
+			}
 			AGUM_Logger::log( 'image_uploaded', sprintf( 'Mapped image %s', $filename ), $user_id );
 		}
 
@@ -85,6 +90,11 @@ class AGUM_Upload {
 			if ( file_exists( $file ) ) {
 				$url = trailingslashit( $info['image_url'] ) . basename( $file );
 				$wpdb->update( AGUM_DB::users_table(), array( 'image_path' => esc_url_raw( $url ) ), array( 'id' => absint( $user_id ) ), array( '%s' ), array( '%d' ) );
+				$profile = AGUM_Users::get( $user_id );
+				if ( $profile && ! empty( $profile->wp_user_id ) ) {
+					update_user_meta( absint( $profile->wp_user_id ), 'agum_profile_image', esc_url_raw( $url ) );
+					update_user_meta( absint( $profile->wp_user_id ), 'wp_user_avatar', esc_url_raw( $url ) );
+				}
 				return $url;
 			}
 		}

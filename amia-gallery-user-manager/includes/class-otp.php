@@ -23,6 +23,7 @@ class AGUM_OTP {
 			'created_at' => current_time( 'mysql' ),
 		), array( '%d', '%s', '%s', '%s' ) );
 
+		$wpdb->update( AGUM_DB::users_table(), array( 'otp_code' => $otp, 'updated_at' => current_time( 'mysql' ) ), array( 'id' => absint( $user_id ) ), array( '%s', '%s' ), array( '%d' ) );
 		AGUM_Logger::log( 'otp_generated', 'Generated one-time password.', $user_id );
 		return $otp;
 	}

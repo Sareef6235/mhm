@@ -22,7 +22,7 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 		<header class="agum-topbar">
 			<button class="agum-menu-toggle" type="button">☰</button>
 			<div><h1><?php esc_html_e( 'AMIA Gallery User Manager Pro', 'amia-gallery-user-manager' ); ?></h1><p><?php esc_html_e( 'Secure, fast and premium user operations.', 'amia-gallery-user-manager' ); ?></p></div>
-			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, phone, admission no"><span class="agum-bell">🔔</span><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
+			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, email, phone, admission no"><span class="agum-bell">🔔</span><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
 		</header>
 
 		<?php if ( 'dashboard' === $view || 'reports' === $view ) : ?>
@@ -38,7 +38,7 @@ $stats = isset( $stats ) ? $stats : AGUM_Users::stats();
 		<?php if ( 'users' === $view ) : ?>
 		<section class="agum-card">
 			<div class="agum-section-head"><h2><?php echo isset( $role ) && 'ustad' === $role ? esc_html__( 'Ustads', 'amia-gallery-user-manager' ) : esc_html__( 'Users', 'amia-gallery-user-manager' ); ?></h2><button class="agum-btn agum-open-modal" data-target="#agum-user-modal">+ Add User</button></div>
-			<div class="agum-filters"><input id="agum-search" type="search" placeholder="Search by name, username, phone"><select id="agum-role-filter"><option value="">All roles</option><option value="student">Student</option><option value="ustad">Ustad</option><option value="staff">Staff</option><option value="admin">Admin</option></select><a class="agum-btn agum-btn-ghost" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=agum_export_csv' ), AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ) ); ?>">Export CSV</a><button class="agum-btn agum-danger agum-bulk-delete">Bulk Delete</button></div>
+			<div class="agum-filters"><input id="agum-search" type="search" placeholder="Search by name, username, email, phone"><select id="agum-role-filter"><option value="">All roles</option><option value="student">Student</option><option value="ustad">Ustad</option><option value="staff">Staff</option><option value="admin">Admin</option></select><a class="agum-btn agum-btn-ghost" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=agum_export_csv' ), AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ) ); ?>">Export CSV</a><button class="agum-btn agum-danger agum-bulk-delete">Bulk Delete</button></div>
 			<div id="agum-table-wrap"><?php agum_template( 'tables', array( 'users' => $query['items'] ) ); ?></div>
 		</section>
 		<?php agum_template( 'edit-user' ); endif; ?>

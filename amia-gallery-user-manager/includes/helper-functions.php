@@ -99,3 +99,57 @@ function agum_upload_info() {
 function agum_admin_url( $page, $args = array() ) {
 	return esc_url( add_query_arg( array_merge( array( 'page' => $page ), $args ), admin_url( 'admin.php' ) ) );
 }
+
+
+/**
+ * Map plugin roles to native WordPress roles.
+ *
+ * @param string $role Plugin role.
+ * @return string
+ */
+function agum_map_role_to_wp_role( $role ) {
+	$map = array(
+		'student'    => 'subscriber',
+		'ustad'      => 'editor',
+		'admin'      => 'administrator',
+		'superadmin' => 'administrator',
+		'staff'      => 'subscriber',
+	);
+
+	$role = sanitize_key( $role );
+	return isset( $map[ $role ] ) ? $map[ $role ] : 'subscriber';
+}
+
+/**
+ * Create a deterministic email when CSV/form data does not include one.
+ *
+ * @param string $username Username.
+ * @return string
+ */
+function agum_generate_placeholder_email( $username ) {
+	$username = sanitize_user( $username, true );
+	if ( ! $username ) {
+		$username = 'agum_user_' . wp_generate_password( 8, false, false );
+	}
+
+	return strtolower( $username ) . '@amia-gallery.local';
+}
+
+/**
+ * Resolve a unique placeholder email without colliding with existing WordPress users.
+ *
+ * @param string $username Username.
+ * @return string
+ */
+function agum_unique_placeholder_email( $username ) {
+	$base  = agum_generate_placeholder_email( $username );
+	$email = $base;
+	$index = 2;
+
+	while ( get_user_by( 'email', $email ) ) {
+		$email = preg_replace( '/@/', '+' . $index . '@', $base, 1 );
+		++$index;
+	}
+
+	return $email;
+}

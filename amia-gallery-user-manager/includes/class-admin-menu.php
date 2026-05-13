@@ -17,6 +17,7 @@ class AGUM_Admin_Menu {
 		add_action( 'admin_post_agum_csv_import', array( __CLASS__, 'handle_csv_import' ) );
 		add_action( 'admin_post_agum_export_csv', array( 'AGUM_CSV', 'export' ) );
 		add_action( 'admin_post_agum_save_settings', array( __CLASS__, 'handle_settings' ) );
+		add_action( 'admin_post_agum_sync_wp_users', array( __CLASS__, 'handle_sync_wp_users' ) );
 		add_action( 'admin_post_agum_media_upload', array( __CLASS__, 'handle_media_upload' ) );
 	}
 
@@ -63,7 +64,7 @@ class AGUM_Admin_Menu {
 	public static function csv_page() { self::wrap( 'upload', array( 'type' => 'csv' ) ); }
 	public static function media_page() { self::wrap( 'upload', array( 'type' => 'media', 'users' => AGUM_Users::query( array( 'per_page' => 200 ) ) ) ); }
 	public static function reports_page() { self::wrap( 'dashboard', array( 'view' => 'reports', 'stats' => AGUM_Users::stats(), 'logs' => AGUM_Logger::recent( 30 ) ) ); }
-	public static function settings_page() { self::wrap( 'settings', array( 'settings' => agum_get_settings() ) ); }
+	public static function settings_page() { self::wrap( 'settings', array( 'settings' => agum_get_settings(), 'sync_report' => get_transient( 'agum_sync_report_' . get_current_user_id() ) ) ); }
 	public static function logs_page() { self::wrap( 'dashboard', array( 'view' => 'logs', 'logs' => AGUM_Logger::recent( 50 ) ) ); }
 
 	public static function handle_save_user() {
@@ -93,6 +94,15 @@ class AGUM_Admin_Menu {
 		$user_id = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
 		AGUM_Upload::handle_user_image( $_FILES['user_image'], $user_id );
 		wp_safe_redirect( agum_admin_url( 'agum-media', array( 'message' => 'uploaded' ) ) );
+		exit;
+	}
+
+	public static function handle_sync_wp_users() {
+		AGUM_Security::require_capability();
+		AGUM_Security::verify_nonce();
+		$report = AGUM_Users::migrate_all_to_wp_users();
+		set_transient( 'agum_sync_report_' . get_current_user_id(), $report, MINUTE_IN_SECONDS * 10 );
+		wp_safe_redirect( agum_admin_url( 'agum-settings', array( 'message' => 'synced' ) ) );
 		exit;
 	}
 

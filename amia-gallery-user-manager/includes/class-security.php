@@ -53,7 +53,7 @@ class AGUM_Security {
 
 	public static function clean_user_payload( $payload ) {
 		$fields = array(
-			'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username',
+			'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email',
 			'password', 'phone_number', 'telegram_username', 'telegram_id', 'image_path',
 		);
 		$clean = array();
@@ -70,7 +70,12 @@ class AGUM_Security {
 			return new WP_Error( 'invalid_dob', __( 'Date of birth must use YYYY-MM-DD format.', 'amia-gallery-user-manager' ) );
 		}
 
-		$clean['role'] = in_array( $clean['role'], array( 'student', 'ustad', 'admin', 'staff' ), true ) ? $clean['role'] : 'student';
+		$clean['email'] = sanitize_email( $clean['email'] );
+		if ( '' !== $clean['email'] && ! is_email( $clean['email'] ) ) {
+			return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'amia-gallery-user-manager' ) );
+		}
+
+		$clean['role'] = in_array( $clean['role'], array( 'student', 'ustad', 'admin', 'superadmin', 'staff' ), true ) ? $clean['role'] : 'student';
 		return $clean;
 	}
 }
