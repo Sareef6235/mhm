@@ -854,7 +854,7 @@ class AGUM_Users {
 			$value = 'email' === $column['type'] ? sanitize_email( $value ) : sanitize_textarea_field( $value );
 			if ( ! in_array( $key, AGUM_DB::user_columns(), true ) ) { continue; }
 			$data[ $key ] = $value;
-			$formats[] = 'number' === $column['type'] ? '%f' : ( 'toggle' === $column['type'] ? '%d' : '%s' );
+			$formats[] = 'number' === $column['type'] ? '%f' : ( 'checkbox' === $column['type'] ? '%d' : '%s' );
 		}
 		if ( $data ) { $wpdb->update( AGUM_DB::users_table(), $data, array( 'id' => absint( $agum_id ) ), $formats, array( '%d' ) ); }
 	}

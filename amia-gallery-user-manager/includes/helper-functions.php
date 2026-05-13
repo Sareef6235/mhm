@@ -51,11 +51,22 @@ function agum_default_columns() {
 function agum_default_column_type( $key ) {
 	if ( false !== strpos( $key, 'email' ) ) { return 'email'; }
 	if ( false !== strpos( $key, 'password' ) ) { return 'password'; }
+	if ( false !== strpos( $key, 'phone' ) ) { return 'phone'; }
 	if ( false !== strpos( $key, 'date' ) || 'dob' === $key ) { return 'date'; }
 	if ( false !== strpos( $key, 'image' ) || false !== strpos( $key, 'photo' ) ) { return 'image'; }
 	if ( in_array( $key, array( 'role', 'approval_status' ), true ) ) { return 'select'; }
 	if ( in_array( $key, array( 'notes', 'remarks' ), true ) ) { return 'textarea'; }
 	return 'text';
+}
+
+
+/**
+ * Supported dynamic field types.
+ *
+ * @return array
+ */
+function agum_supported_field_types() {
+	return array( 'text', 'number', 'email', 'password', 'phone', 'textarea', 'select', 'checkbox', 'radio', 'image', 'file', 'date' );
 }
 
 /**
@@ -109,7 +120,7 @@ function agum_sanitize_columns( $columns ) {
 			continue;
 		}
 		$type = isset( $column['type'] ) ? sanitize_key( $column['type'] ) : agum_default_column_type( $key );
-		$type = in_array( $type, array( 'text', 'number', 'email', 'password', 'select', 'date', 'image', 'file', 'textarea', 'toggle' ), true ) ? $type : 'text';
+		$type = in_array( $type, agum_supported_field_types(), true ) ? $type : 'text';
 		$clean[] = array(
 			'key'         => $key,
 			'label'       => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
@@ -174,10 +185,12 @@ function agum_render_dynamic_field( $column, $context = 'form' ) {
 			<select name="<?php echo esc_attr( $key ); ?>" <?php echo esc_attr( $required ); ?>><?php foreach ( $options as $option ) : ?><option value="<?php echo esc_attr( $option ); ?>" <?php selected( $default_value, $option ); ?>><?php echo esc_html( $option ); ?></option><?php endforeach; ?></select>
 		<?php elseif ( 'textarea' === $type ) : ?>
 			<textarea name="<?php echo esc_attr( $key ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo esc_attr( $required ); ?>><?php echo esc_textarea( $default_value ); ?></textarea>
-		<?php elseif ( 'toggle' === $type ) : ?>
+		<?php elseif ( 'checkbox' === $type ) : ?>
 			<input name="<?php echo esc_attr( $key ); ?>" type="checkbox" value="1" <?php checked( $default_value ); ?>>
+		<?php elseif ( 'radio' === $type && $options ) : ?>
+			<div class="agum-radio-group"><?php foreach ( $options as $option ) : ?><label><input name="<?php echo esc_attr( $key ); ?>" type="radio" value="<?php echo esc_attr( $option ); ?>" <?php checked( $default_value, $option ); ?> <?php echo esc_attr( $required ); ?>> <?php echo esc_html( $option ); ?></label><?php endforeach; ?></div>
 		<?php else : ?>
-			<input name="<?php echo esc_attr( $key ); ?>" type="<?php echo esc_attr( in_array( $type, array( 'email', 'password', 'number', 'date' ), true ) ? $type : 'text' ); ?>" value="<?php echo 'password' === $key ? '' : esc_attr( $default_value ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo 'password' === $key ? 'minlength="8"' : ''; ?> <?php echo esc_attr( $required ); ?>>
+			<input name="<?php echo esc_attr( $key ); ?>" type="<?php echo esc_attr( 'phone' === $type ? 'tel' : ( in_array( $type, array( 'email', 'password', 'number', 'date' ), true ) ? $type : 'text' ) ); ?>" value="<?php echo 'password' === $key ? '' : esc_attr( $default_value ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo 'password' === $key ? 'minlength="8"' : ''; ?> <?php echo esc_attr( $required ); ?>>
 		<?php endif; ?>
 	</label>
 	<?php

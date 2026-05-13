@@ -71,16 +71,22 @@
   });
   function escAttr(v){ return $('<div/>').text(v == null ? '' : String(v)).html().replace(/"/g,'&quot;'); }
   const fieldFlags = [['enabled','Show',true],['required','Required',false],['form','Add Form',true],['edit','Edit Modal',true],['csv','CSV',true],['bulk_upload','Bulk Upload',true],['image_field','Image Field',false],['searchable','Search',false],['filterable','Filter',false],['export','Export',true]];
-  const fieldTypes = ['text','number','email','password','select','date','image','file','textarea','toggle'];
+  const fieldTypes = ['text','number','email','password','phone','textarea','select','checkbox','radio','image','file','date'];
   function fieldRow(i, data){
     data = data || {}; const key=escAttr(data.key || ('custom_field_'+Date.now())); const label=escAttr(data.label || ('Custom Field '+(i+1))); data.placeholder=escAttr(data.placeholder||''); data.default_value=escAttr(data.default_value||''); data.options=escAttr(data.options||'');
     const type=data.type || 'text';
     const flags = fieldFlags.map(f => '<label class="agum-check agum-toggle"><input type="checkbox" name="columns['+i+']['+f[0]+']" value="1" '+((data[f[0]] !== undefined ? !!parseInt(data[f[0]],10) : f[2])?'checked':'')+'> <span></span>'+f[1]+'</label>').join('');
     return '<div class="agum-column-row agum-column-row-advanced" draggable="true"><span class="agum-drag" title="Drag to reorder">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" value="'+key+'" placeholder="field_name"><input name="columns['+i+'][label]" value="'+label+'" placeholder="Field label"><select name="columns['+i+'][type]">'+fieldTypes.map(t=>'<option value="'+t+'" '+(t===type?'selected':'')+'>'+t+'</option>').join('')+'</select><input name="columns['+i+'][placeholder]" value="'+data.placeholder+'" placeholder="Placeholder"><input name="columns['+i+'][default_value]" value="'+data.default_value+'" placeholder="Default value"><input name="columns['+i+'][options]" value="'+data.options+'" placeholder="Options: A, B, C"><div class="agum-field-flags">'+flags+'</div><button class="agum-icon agum-remove-column" type="button" aria-label="Delete field">×</button></div>';
   }
-  $(document).on('click','.agum-add-column',function(){
-    const wrap=$('#agum-column-manager'); const i=wrap.children().length;
-    wrap.append(fieldRow(i)); updateColumnOrder(); $('.agum-column-form').trigger('agum-preview-update').trigger('agum-save-now'); window.agumToast && window.agumToast('New field added. Saving…');
+  function openFieldModal(){ const modal=$('#agum-field-modal'); const form=modal.find('.agum-create-field-form'); if(form.length){ form[0].reset(); form.find('[name="csv"],[name="bulk_upload"]').prop('checked', true); } modal.addClass('is-open').attr('aria-hidden','false'); setTimeout(()=>modal.find('[name="key"]').trigger('focus'),80); }
+  $(document).on('click','.agum-add-column,[data-agum-open-field-modal]',function(e){ e.preventDefault(); openFieldModal(); });
+  $(document).on('submit','.agum-create-field-form',function(e){
+    e.preventDefault(); const form=$(this); const button=form.find('.agum-create-field-save'); const data=form.serializeArray(); data.push({name:'action',value:'agum_create_field'},{name:'nonce',value:agumAdmin.nonce});
+    button.prop('disabled',true).text('Saving…');
+    $.post(agumAdmin.ajaxUrl,$.param(data)).done(function(resp){
+      if(!resp.success){ window.agumToast && window.agumToast((resp.data&&resp.data.message)||'Save failed', true); return; }
+      const wrap=$('#agum-column-manager'); wrap.append(fieldRow(wrap.children().length, resp.data.column)); updateColumnOrder(); $('#agum-field-modal').removeClass('is-open').attr('aria-hidden','true'); $('.agum-column-form').trigger('agum-preview-update'); try{ localStorage.setItem('agumFieldRegistryUpdated', String(Date.now())); }catch(err){} $(document).trigger('agum:fields-updated',[resp.data]); $('#agum-search').trigger('input'); window.agumToast && window.agumToast(resp.data.message || 'Field created successfully');
+    }).fail(function(xhr){ const msg=xhr.responseJSON&&xhr.responseJSON.data&&xhr.responseJSON.data.message?xhr.responseJSON.data.message:'Save failed'; window.agumToast && window.agumToast(msg,true); }).always(function(){ button.prop('disabled',false).text('Save Field'); });
   });
   $(document).on('click','.agum-remove-column',function(){ const row=$(this).closest('.agum-column-row'); const key=row.find('[name$="[key]"]').val(); window.agumConfirmDelete({name:'Column '+key,message:'This removes the field from settings, validation, CSV, forms, tables and database.',onConfirm:function(confirmText){ $.post(agumAdmin.ajaxUrl,{action:'agum_delete_column',nonce:agumAdmin.nonce,key:key,confirm_text:confirmText}).done(function(resp){ if(resp.success){ row.remove(); updateColumnOrder(); $('#agum-delete-modal').removeClass('is-open'); $('.agum-column-form').trigger('agum-preview-update'); try{ localStorage.setItem('agumFieldRegistryUpdated', String(Date.now())); }catch(e){} $('#agum-search').trigger('input'); window.agumToast && window.agumToast(resp.data.message); } else { window.agumToast && window.agumToast(resp.data.message || 'Column delete failed', true); } }); }}); });
   let dragged=null;

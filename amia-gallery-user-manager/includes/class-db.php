@@ -243,8 +243,11 @@ class AGUM_DB {
 			case 'number': return 'decimal(20,4)';
 			case 'date': return 'date';
 			case 'textarea': return 'text';
-			case 'toggle': return 'tinyint(1) DEFAULT 0';
-			default: return 'text';
+			case 'checkbox': return 'tinyint(1) DEFAULT 0';
+			case 'image':
+			case 'file':
+				return 'text';
+			default: return 'varchar(255)';
 		}
 	}
 }

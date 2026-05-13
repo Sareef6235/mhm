@@ -26,6 +26,7 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_delete_notification', array( __CLASS__, 'delete_notification' ) );
 		add_action( 'wp_ajax_agum_clear_notifications', array( __CLASS__, 'clear_notifications' ) );
 		add_action( 'wp_ajax_agum_delete_column', array( __CLASS__, 'delete_column' ) );
+		add_action( 'wp_ajax_agum_create_field', array( __CLASS__, 'create_field' ) );
 	}
 
 	public static function search_users() {
@@ -146,6 +147,80 @@ class AGUM_Ajax {
 		self::require_delete_confirmation();
 		AGUM_Logger::clear_notifications();
 		wp_send_json_success( array( 'message' => __( 'All notifications cleared.', 'amia-gallery-user-manager' ) ) );
+	}
+
+
+	public static function create_field() {
+		AGUM_Security::ajax_guard();
+		$raw_key = isset( $_POST['key'] ) ? sanitize_text_field( wp_unslash( $_POST['key'] ) ) : '';
+		$key = sanitize_key( $raw_key );
+		$key = preg_replace( '/[^a-z0-9_]/', '_', $key );
+		$key = preg_replace( '/_+/', '_', $key );
+		if ( $key && ! preg_match( '/^[a-z_]/', $key ) ) {
+			$key = 'field_' . $key;
+		}
+		if ( ! $key || ! preg_match( '/^[a-z_][a-z0-9_]*$/', $key ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid field name. Use letters, numbers, and underscores; start with a letter.', 'amia-gallery-user-manager' ) ), 400 );
+		}
+		if ( 'password' === $key || in_array( $key, array( 'id', 'wp_user_id', 'created_at', 'updated_at', 'password_hash' ), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'This field name is reserved.', 'amia-gallery-user-manager' ) ), 400 );
+		}
+
+		$settings = agum_get_settings();
+		$previous_columns = isset( $settings['columns'] ) ? $settings['columns'] : array();
+		foreach ( agum_sanitize_columns( $previous_columns ) as $existing ) {
+			if ( $key === $existing['key'] ) {
+				wp_send_json_error( array( 'message' => __( 'Field already exists.', 'amia-gallery-user-manager' ) ), 409 );
+			}
+		}
+
+		$type = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : 'text';
+		if ( ! in_array( $type, agum_supported_field_types(), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unsupported field type.', 'amia-gallery-user-manager' ) ), 400 );
+		}
+
+		$column = array(
+			'key'           => $key,
+			'label'         => isset( $_POST['label'] ) && '' !== trim( wp_unslash( $_POST['label'] ) ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : ucwords( str_replace( '_', ' ', $key ) ),
+			'type'          => $type,
+			'enabled'       => 1,
+			'required'      => ! empty( $_POST['required'] ) ? 1 : 0,
+			'form'          => 1,
+			'edit'          => 1,
+			'csv'           => ! empty( $_POST['csv'] ) ? 1 : 0,
+			'bulk'          => ! empty( $_POST['bulk_upload'] ) ? 1 : 0,
+			'bulk_upload'   => ! empty( $_POST['bulk_upload'] ) ? 1 : 0,
+			'image_field'   => in_array( $type, array( 'image', 'file' ), true ) ? 1 : 0,
+			'searchable'    => ! empty( $_POST['searchable'] ) ? 1 : 0,
+			'filterable'    => ! empty( $_POST['filterable'] ) ? 1 : 0,
+			'export'        => 1,
+			'options'       => isset( $_POST['options'] ) ? sanitize_text_field( wp_unslash( $_POST['options'] ) ) : '',
+			'placeholder'   => isset( $_POST['placeholder'] ) ? sanitize_text_field( wp_unslash( $_POST['placeholder'] ) ) : '',
+			'default_value' => isset( $_POST['default_value'] ) ? sanitize_text_field( wp_unslash( $_POST['default_value'] ) ) : '',
+			'order'         => count( (array) $previous_columns ),
+		);
+
+		$settings['columns'][] = $column;
+		$settings['columns'] = agum_sanitize_columns( $settings['columns'] );
+		update_option( 'agum_settings', $settings );
+		wp_cache_delete( 'agum_settings', 'agum' );
+		AGUM_DB::sync_dynamic_columns( $previous_columns );
+		$columns = AGUM_DB::user_columns();
+		if ( 'password' !== $key && ! in_array( $key, $columns, true ) ) {
+			$settings['columns'] = $previous_columns;
+			update_option( 'agum_settings', $settings );
+			wp_cache_delete( 'agum_settings', 'agum' );
+			wp_send_json_error( array( 'message' => __( 'Database error: field metadata was not saved because the column could not be created.', 'amia-gallery-user-manager' ) ), 500 );
+		}
+
+		AGUM_Logger::notify( 'settings_saved', sprintf( __( 'Field %s created.', 'amia-gallery-user-manager' ), $key ), array( 'column' => $column ) );
+		wp_send_json_success(
+			array(
+				'message' => __( 'Field created successfully.', 'amia-gallery-user-manager' ),
+				'column'  => agum_get_column( $key ),
+				'columns' => agum_get_columns(),
+			)
+		);
 	}
 
 	public static function delete_column() {
