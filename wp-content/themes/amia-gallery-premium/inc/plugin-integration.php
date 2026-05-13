@@ -17,6 +17,10 @@ function amia_premium_agum_logs( $limit = 8 ) {
 	return class_exists( 'AGUM_Logger' ) ? AGUM_Logger::recent( $limit ) : array();
 }
 
+function amia_premium_agum_notifications( $limit = 8 ) {
+	return class_exists( 'AGUM_Logger' ) ? AGUM_Logger::notifications( $limit ) : array();
+}
+
 function amia_premium_user_image( $user_id = 0 ) {
 	$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
 	$image = get_user_meta( $user_id, 'agum_profile_image', true );

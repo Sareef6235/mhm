@@ -116,7 +116,7 @@ class AGUM_Users {
 		self::sync_user_meta( $wp_user_id, $clean, $result );
 		self::save_dynamic_columns( $result, $payload );
 		AGUM_Upload::auto_assign_existing_image( $result, $clean['name'] );
-		AGUM_Logger::log( 'user_created', sprintf( 'Created user %s.', $username ), $result, array( 'wp_user_id' => $wp_user_id, 'username' => $username, 'email' => $email ) );
+		AGUM_Logger::log( 'user_created', sprintf( 'Created user %s.', $username ), $result, array( 'wp_user_id' => $wp_user_id, 'username' => $username, 'email' => $email, 'role' => $clean['role'], 'profile_image' => ! empty( $clean['profile_photo'] ) ? $clean['profile_photo'] : $clean['image_path'], 'source_system' => isset( $payload['source_system'] ) ? sanitize_text_field( wp_unslash( $payload['source_system'] ) ) : 'Plugin Form' ) );
 		return $result;
 	}
 
@@ -863,7 +863,9 @@ class AGUM_Users {
 			AGUM_Logger::debug( 'sync_insert_failed', 'Failed inserting AGUM profile during WP sync.', array( 'wp_user_id' => $user->ID, 'last_error' => $wpdb->last_error ) );
 			return new WP_Error( 'sync_insert_failed', $wpdb->last_error );
 		}
-		return absint( $wpdb->insert_id );
+		$agum_id = absint( $wpdb->insert_id );
+		AGUM_Logger::log( 'user_created', sprintf( 'Created user %s from WordPress.', $username ), $agum_id, array( 'wp_user_id' => $user->ID, 'username' => $username, 'email' => $email, 'role' => $role, 'profile_image' => $data['profile_photo'], 'source_system' => 'WordPress Users' ) );
+		return $agum_id;
 	}
 
 	public static function record_login( $user_login, $user ) {
@@ -871,7 +873,7 @@ class AGUM_Users {
 		self::sync_wp_user( $user->ID );
 		$wpdb->update( AGUM_DB::users_table(), array( 'last_login' => current_time( 'mysql' ), 'last_seen' => current_time( 'mysql' ) ), array( 'wp_user_id' => absint( $user->ID ) ), array( '%s', '%s' ), array( '%d' ) );
 		update_user_meta( $user->ID, 'agum_last_login', current_time( 'mysql' ) );
-		AGUM_Logger::log( 'user_login', sprintf( 'User %s logged in.', $user_login ), null, array( 'wp_user_id' => $user->ID ) );
+		AGUM_Logger::log( 'user_login', sprintf( 'User %s logged in.', $user_login ), null, array( 'wp_user_id' => $user->ID, 'username' => $user_login, 'source_system' => 'WordPress Login' ) );
 	}
 
 	public static function record_logout() {

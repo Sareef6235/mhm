@@ -36,7 +36,7 @@ function agum_default_columns() {
 	$keys = array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo', 'approval_status', 'notes', 'remarks' );
 	$columns = array();
 	foreach ( $keys as $index => $key ) {
-		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'type' => agum_default_column_type( $key ), 'enabled' => 1, 'required' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' ), true ) ? 1 : 0, 'bulk' => 1, 'searchable' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'username', 'email', 'phone_number' ), true ) ? 1 : 0, 'filterable' => in_array( $key, array( 'role', 'class', 'approval_status' ), true ) ? 1 : 0, 'export' => 1, 'order' => $index );
+		$columns[] = array( 'key' => $key, 'label' => ucwords( str_replace( '_', ' ', $key ) ), 'type' => agum_default_column_type( $key ), 'enabled' => 1, 'required' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number' ), true ) ? 1 : 0, 'form' => 1, 'edit' => 1, 'csv' => 1, 'bulk' => 1, 'bulk_upload' => 1, 'image_field' => in_array( $key, array( 'image_path', 'profile_photo' ), true ) ? 1 : 0, 'searchable' => in_array( $key, array( 'student_id', 'admission_no', 'name', 'username', 'email', 'phone_number' ), true ) ? 1 : 0, 'filterable' => in_array( $key, array( 'role', 'class', 'approval_status' ), true ) ? 1 : 0, 'export' => 1, 'order' => $index );
 	}
 	return $columns;
 }
@@ -106,21 +106,72 @@ function agum_sanitize_columns( $columns ) {
 		$type = isset( $column['type'] ) ? sanitize_key( $column['type'] ) : agum_default_column_type( $key );
 		$type = in_array( $type, array( 'text', 'number', 'email', 'password', 'select', 'date', 'image', 'file', 'textarea', 'toggle' ), true ) ? $type : 'text';
 		$clean[] = array(
-			'key'        => $key,
-			'label'      => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
-			'type'       => $type,
-			'enabled'    => ! empty( $column['enabled'] ) ? 1 : 0,
-			'required'   => ! empty( $column['required'] ) ? 1 : 0,
-			'bulk'       => ! empty( $column['bulk'] ) ? 1 : 0,
-			'searchable' => ! empty( $column['searchable'] ) ? 1 : 0,
-			'filterable' => ! empty( $column['filterable'] ) ? 1 : 0,
-			'export'     => isset( $column['export'] ) ? ( ! empty( $column['export'] ) ? 1 : 0 ) : 1,
-			'options'    => isset( $column['options'] ) ? sanitize_text_field( $column['options'] ) : '',
-			'order'      => isset( $column['order'] ) ? absint( $column['order'] ) : $index,
+			'key'         => $key,
+			'label'       => isset( $column['label'] ) ? sanitize_text_field( $column['label'] ) : ucwords( str_replace( '_', ' ', $key ) ),
+			'type'        => $type,
+			'enabled'     => ! empty( $column['enabled'] ) ? 1 : 0,
+			'required'    => ! empty( $column['required'] ) ? 1 : 0,
+			'form'        => isset( $column['form'] ) ? ( ! empty( $column['form'] ) ? 1 : 0 ) : 1,
+			'edit'        => isset( $column['edit'] ) ? ( ! empty( $column['edit'] ) ? 1 : 0 ) : 1,
+			'csv'         => isset( $column['csv'] ) ? ( ! empty( $column['csv'] ) ? 1 : 0 ) : ( isset( $column['bulk'] ) ? ( ! empty( $column['bulk'] ) ? 1 : 0 ) : 1 ),
+			'bulk'        => ! empty( $column['bulk'] ) ? 1 : 0,
+			'bulk_upload' => isset( $column['bulk_upload'] ) ? ( ! empty( $column['bulk_upload'] ) ? 1 : 0 ) : ( ! empty( $column['bulk'] ) ? 1 : 0 ),
+			'image_field' => isset( $column['image_field'] ) ? ( ! empty( $column['image_field'] ) ? 1 : 0 ) : ( in_array( $key, array( 'image_path', 'profile_photo' ), true ) ? 1 : 0 ),
+			'searchable'  => ! empty( $column['searchable'] ) ? 1 : 0,
+			'filterable'  => ! empty( $column['filterable'] ) ? 1 : 0,
+			'export'      => isset( $column['export'] ) ? ( ! empty( $column['export'] ) ? 1 : 0 ) : 1,
+			'options'     => isset( $column['options'] ) ? sanitize_text_field( $column['options'] ) : '',
+			'order'       => isset( $column['order'] ) ? absint( $column['order'] ) : $index,
 		);
 	}
 	usort( $clean, static function ( $a, $b ) { return $a['order'] <=> $b['order']; } );
 	return $clean ? $clean : agum_default_columns();
+}
+
+
+/**
+ * Return columns enabled for a specific dynamic surface.
+ *
+ * @param string $context Surface key: form, edit, csv, bulk_upload, image_field, searchable, filterable, export.
+ * @return array
+ */
+function agum_get_columns_for_context( $context ) {
+	$context = sanitize_key( $context );
+	return array_values( array_filter( agum_get_columns(), static function ( $column ) use ( $context ) {
+		return ! empty( $column['enabled'] ) && ( ! array_key_exists( $context, $column ) || ! empty( $column[ $context ] ) );
+	} ) );
+}
+
+/**
+ * Render a dynamic user field based on settings.
+ *
+ * @param array  $column Column config.
+ * @param string $context form/edit context.
+ * @return void
+ */
+function agum_render_dynamic_field( $column, $context = 'form' ) {
+	$key = sanitize_key( $column['key'] );
+	$required = ! empty( $column['required'] ) ? 'required' : '';
+	$type = isset( $column['type'] ) ? sanitize_key( $column['type'] ) : 'text';
+	$options = array_filter( array_map( 'trim', explode( ',', isset( $column['options'] ) ? $column['options'] : '' ) ) );
+	?>
+	<label class="agum-field agum-field-<?php echo esc_attr( $key ); ?>" data-field="<?php echo esc_attr( $key ); ?>">
+		<span><?php echo esc_html( $column['label'] ); ?><?php echo $required ? ' *' : ''; ?></span>
+		<?php if ( 'role' === $key ) : ?>
+			<select name="role" <?php echo esc_attr( $required ); ?>><option value="student">Student → Subscriber</option><option value="ustad">Ustad → Editor</option><option value="admin">Admin → Administrator</option><option value="superadmin">Superadmin → Administrator</option><option value="staff">Staff → Subscriber</option></select>
+		<?php elseif ( 'approval_status' === $key ) : ?>
+			<select name="approval_status" <?php echo esc_attr( $required ); ?>><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select>
+		<?php elseif ( 'select' === $type && $options ) : ?>
+			<select name="<?php echo esc_attr( $key ); ?>" <?php echo esc_attr( $required ); ?>><?php foreach ( $options as $option ) : ?><option value="<?php echo esc_attr( $option ); ?>"><?php echo esc_html( $option ); ?></option><?php endforeach; ?></select>
+		<?php elseif ( 'textarea' === $type ) : ?>
+			<textarea name="<?php echo esc_attr( $key ); ?>" <?php echo esc_attr( $required ); ?>></textarea>
+		<?php elseif ( 'toggle' === $type ) : ?>
+			<input name="<?php echo esc_attr( $key ); ?>" type="checkbox" value="1">
+		<?php else : ?>
+			<input name="<?php echo esc_attr( $key ); ?>" type="<?php echo esc_attr( in_array( $type, array( 'email', 'password', 'number', 'date' ), true ) ? $type : 'text' ); ?>" <?php echo 'password' === $key ? 'minlength="8"' : ''; ?> <?php echo esc_attr( $required ); ?>>
+		<?php endif; ?>
+	</label>
+	<?php
 }
 
 /**

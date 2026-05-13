@@ -79,6 +79,7 @@ final class AMIA_Gallery_User_Manager_Pro {
 		add_action( 'delete_user', array( $this, 'delete_agum_for_wp_user' ) );
 		add_action( 'wp_login', array( 'AGUM_Users', 'record_login' ), 10, 2 );
 		add_action( 'wp_logout', array( 'AGUM_Users', 'record_logout' ) );
+			add_action( 'wp_login_failed', array( $this, 'record_failed_login' ) );
 		add_action( 'show_user_profile', array( $this, 'render_wp_profile_image' ) );
 		add_action( 'edit_user_profile', array( $this, 'render_wp_profile_image' ) );
 
@@ -186,6 +187,16 @@ final class AMIA_Gallery_User_Manager_Pro {
 		AGUM_DB::create_tables();
 		AGUM_Users::migrate_all_to_wp_users();
 		update_option( 'agum_native_user_sync_complete', current_time( 'mysql' ) );
+	}
+
+	/**
+	 * Record failed login attempts for security notifications.
+	 *
+	 * @param string $username Attempted username.
+	 * @return void
+	 */
+	public function record_failed_login( $username ) {
+		AGUM_Logger::log( 'failed_login', sprintf( 'Failed login attempt for %s.', sanitize_user( $username ) ), null, array( 'username' => sanitize_user( $username ), 'source_system' => 'WordPress Login' ) );
 	}
 
 	/**

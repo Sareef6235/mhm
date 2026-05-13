@@ -23,6 +23,8 @@ class AGUM_Ajax {
 		add_action( 'wp_ajax_agum_export_settings', array( __CLASS__, 'export_settings' ) );
 		add_action( 'wp_ajax_agum_get_notifications', array( __CLASS__, 'get_notifications' ) );
 		add_action( 'wp_ajax_agum_mark_notifications_read', array( __CLASS__, 'mark_notifications_read' ) );
+		add_action( 'wp_ajax_agum_delete_notification', array( __CLASS__, 'delete_notification' ) );
+		add_action( 'wp_ajax_agum_clear_notifications', array( __CLASS__, 'clear_notifications' ) );
 	}
 
 	public static function search_users() {
@@ -102,7 +104,13 @@ class AGUM_Ajax {
 
 	public static function get_notifications() {
 		AGUM_Security::ajax_guard();
-		$items = AGUM_Logger::notifications( isset( $_GET['limit'] ) ? absint( $_GET['limit'] ) : 20 );
+		$args = array(
+			'search'   => isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : '',
+			'type'     => isset( $_GET['type'] ) ? sanitize_key( wp_unslash( $_GET['type'] ) ) : '',
+			'category' => isset( $_GET['category'] ) ? sanitize_key( wp_unslash( $_GET['category'] ) ) : '',
+			'date'     => isset( $_GET['date'] ) ? sanitize_text_field( wp_unslash( $_GET['date'] ) ) : '',
+		);
+		$items = AGUM_Logger::notifications( isset( $_GET['limit'] ) ? absint( $_GET['limit'] ) : 20, false, $args );
 		$unread = count( AGUM_Logger::notifications( 100, true ) );
 		wp_send_json_success( array( 'items' => $items, 'unread' => $unread, 'serverTime' => current_time( 'mysql' ) ) );
 	}
@@ -112,6 +120,19 @@ class AGUM_Ajax {
 		$ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : array();
 		AGUM_Logger::mark_notifications_read( $ids );
 		wp_send_json_success( array( 'message' => __( 'Notifications marked as read.', 'amia-gallery-user-manager' ) ) );
+	}
+
+	public static function delete_notification() {
+		AGUM_Security::ajax_guard();
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$deleted = $id ? AGUM_Logger::delete_notifications( array( $id ) ) : 0;
+		wp_send_json_success( array( 'deleted' => $deleted, 'message' => __( 'Notification deleted.', 'amia-gallery-user-manager' ) ) );
+	}
+
+	public static function clear_notifications() {
+		AGUM_Security::ajax_guard();
+		AGUM_Logger::clear_notifications();
+		wp_send_json_success( array( 'message' => __( 'All notifications cleared.', 'amia-gallery-user-manager' ) ) );
 	}
 
 	public static function validate_image() {

@@ -44,7 +44,7 @@
   });
   $(document).on('click','.agum-add-column',function(){
     const wrap=$('#agum-column-manager'); const i=wrap.children().length;
-    wrap.append('<div class="agum-column-row" draggable="true"><span class="agum-drag">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" placeholder="column_key"><input name="columns['+i+'][label]" placeholder="Column label"><label class="agum-check"><input type="checkbox" name="columns['+i+'][enabled]" value="1" checked> Enabled</label><button class="agum-icon agum-remove-column" type="button">×</button></div>');
+    wrap.append('<div class="agum-column-row agum-column-row-advanced" draggable="true"><span class="agum-drag">↕</span><input name="columns['+i+'][order]" value="'+i+'" type="hidden" class="agum-column-order"><input name="columns['+i+'][key]" placeholder="column_key"><input name="columns['+i+'][label]" placeholder="Column label"><select name="columns['+i+'][type]"><option>text</option><option>number</option><option>email</option><option>password</option><option>select</option><option>date</option><option>image</option><option>file</option><option>textarea</option><option>toggle</option></select><input name="columns['+i+'][options]" placeholder="Options: A, B, C"><div class="agum-field-flags"><label class="agum-check"><input type="checkbox" name="columns['+i+'][enabled]" value="1" checked> Show</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][required]" value="1"> Required</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][form]" value="1" checked> Add Form</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][edit]" value="1" checked> Edit Modal</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][csv]" value="1" checked> CSV</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][bulk_upload]" value="1" checked> Bulk Upload</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][image_field]" value="1"> Image Field</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][searchable]" value="1"> Search</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][filterable]" value="1"> Filter</label><label class="agum-check"><input type="checkbox" name="columns['+i+'][export]" value="1" checked> Export</label></div><button class="agum-icon agum-remove-column" type="button">×</button></div>');
   });
   $(document).on('click','.agum-remove-column',function(){ $(this).closest('.agum-column-row').remove(); updateColumnOrder(); });
   let dragged=null;
@@ -67,40 +67,47 @@
 })(jQuery);
 (function($){
   'use strict';
-  let lastSeenId = 0;
+  let lastSeenId = 0, noteTimer;
   function escapeHtml(value){ return $('<div/>').text(value || '').html(); }
+  function activeFilters(){ return { search: $('.agum-notification-search:focus').val() || $('.agum-notification-search').first().val() || '', category: $('.agum-notification-filter:focus').val() || $('.agum-notification-filter').first().val() || 'all' }; }
   function renderNotifications(items){
     const boxes=$('.agum-notifications'); if(!boxes.length){return;}
     boxes.each(function(){
       const box=$(this); box.empty();
-      if(!items || !items.length){ box.append('<div class="agum-notification-empty">No notifications yet.</div>'); return; }
+      if(!items || !items.length){ box.append('<div class="agum-notification-empty">No notifications found.</div>'); return; }
       items.forEach(function(n){
-        const type=escapeHtml(n.type || 'info');
-        box.append('<div class="agum-notification agum-notification-'+type+'" data-id="'+parseInt(n.id,10)+'"><strong>'+escapeHtml(n.title)+'</strong><p>'+escapeHtml(n.message)+'</p><time>'+escapeHtml(n.created_at)+'</time></div>');
+        const type=escapeHtml(n.type || 'info'), id=parseInt(n.id,10)||0, unread=parseInt(n.is_read,10)===0;
+        box.append('<div class="agum-notification agum-notification-'+type+(unread?' is-unread':'')+'" data-id="'+id+'" data-category="'+escapeHtml(n.category || 'all')+'"><img class="agum-notification-avatar" src="'+escapeHtml(n.profile_image)+'" alt=""><div class="agum-notification-body"><strong>'+escapeHtml(n.title)+'</strong><p>'+escapeHtml(n.message)+'</p><div class="agum-notification-meta"><span>@'+escapeHtml(n.username || 'system')+'</span><span>'+escapeHtml(n.role || '—')+'</span><span>'+escapeHtml(n.source_system || 'Plugin')+'</span><time>'+escapeHtml(n.time_ago || n.created_at)+'</time></div><small>By '+escapeHtml(n.actor_name || 'System')+'</small></div><button type="button" class="agum-delete-notification" aria-label="Delete notification">×</button></div>');
       });
     });
   }
   function pollNotifications(){
     if(typeof agumAdmin==='undefined'){return;}
-    $.get(agumAdmin.ajaxUrl,{action:'agum_get_notifications',nonce:agumAdmin.nonce,limit:20}).done(function(r){
+    const f=activeFilters();
+    $.get(agumAdmin.ajaxUrl,{action:'agum_get_notifications',nonce:agumAdmin.nonce,limit:30,search:f.search,category:f.category}).done(function(r){
       if(!r.success){return;}
       const unread=parseInt(r.data.unread,10)||0;
       $('.agum-notification-count').text(unread).toggleClass('is-zero', unread===0);
       const items=r.data.items||[];
       if(items.length){
         const newest=parseInt(items[0].id,10)||0;
-        if(lastSeenId && newest>lastSeenId){
-          const fresh=items.filter(function(item){ return (parseInt(item.id,10)||0)>lastSeenId; }).reverse();
-          fresh.forEach(function(item){ window.agumToast && window.agumToast(item.title+': '+item.message, item.type==='error'); });
-        }
+        if(lastSeenId && newest>lastSeenId){ items.filter(item => (parseInt(item.id,10)||0)>lastSeenId).reverse().forEach(item => window.agumToast && window.agumToast(item.title+': '+item.message, item.type==='error')); }
         lastSeenId=Math.max(lastSeenId,newest);
       }
       renderNotifications(items);
     });
   }
+  function debouncedPoll(){ clearTimeout(noteTimer); noteTimer=setTimeout(pollNotifications,180); }
   window.agumPollNotifications = pollNotifications;
   setInterval(pollNotifications,15000); $(pollNotifications);
-  $(document).on('click','.agum-bell',function(e){ e.preventDefault(); const center=$(this).closest('.agum-notification-center'); center.toggleClass('is-open'); $(this).attr('aria-expanded', center.hasClass('is-open') ? 'true' : 'false'); });
+  $(document).on('input','.agum-notification-search',debouncedPoll);
+  $(document).on('change','.agum-notification-filter',pollNotifications);
+  $(document).on('click','.agum-bell',function(e){ e.preventDefault(); const center=$(this).closest('.agum-notification-center'); center.toggleClass('is-open'); $(this).attr('aria-expanded', center.hasClass('is-open') ? 'true' : 'false'); if(center.hasClass('is-open')){ pollNotifications(); } });
   $(document).on('click',function(e){ if(!$(e.target).closest('.agum-notification-center').length){ $('.agum-notification-center').removeClass('is-open'); $('.agum-bell').attr('aria-expanded','false'); } });
-  $(document).on('click','.agum-mark-notifications-read',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_mark_notifications_read',nonce:agumAdmin.nonce}).done(pollNotifications); });
+  $(document).on('click','.agum-mark-notifications-read',function(){ $.post(agumAdmin.ajaxUrl,{action:'agum_mark_notifications_read',nonce:agumAdmin.nonce}).done(function(r){ window.agumToast && window.agumToast(r.data.message); pollNotifications(); }); });
+  $(document).on('click','.agum-delete-notification',function(){ const id=$(this).closest('.agum-notification').data('id'); $.post(agumAdmin.ajaxUrl,{action:'agum_delete_notification',nonce:agumAdmin.nonce,id:id}).done(function(r){ window.agumToast && window.agumToast(r.data.message); pollNotifications(); }); });
+  $(document).on('click','.agum-clear-notifications',function(){ if(!confirm('Clear all notifications?')){return;} $.post(agumAdmin.ajaxUrl,{action:'agum_clear_notifications',nonce:agumAdmin.nonce}).done(function(r){ window.agumToast && window.agumToast(r.data.message); pollNotifications(); }); });
+  let touchStartX=0;
+  $(document).on('touchstart','.agum-notification',function(e){ touchStartX=e.originalEvent.touches[0].clientX; });
+  $(document).on('touchend','.agum-notification',function(e){ const dx=e.originalEvent.changedTouches[0].clientX-touchStartX; if(Math.abs(dx)>90){ $(this).find('.agum-delete-notification').trigger('click'); } });
 })(jQuery);

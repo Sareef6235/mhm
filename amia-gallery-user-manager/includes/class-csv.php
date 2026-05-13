@@ -13,7 +13,7 @@ class AGUM_CSV {
 	public static function expected_headers() {
 		$headers = array();
 		foreach ( agum_get_columns() as $column ) {
-			if ( ! empty( $column['bulk'] ) ) { $headers[] = $column['key']; }
+			if ( ! empty( $column['csv'] ) ) { $headers[] = $column['key']; }
 		}
 		return $headers ? $headers : array( 'student_id', 'admission_no', 'name', 'class', 'dob', 'role', 'username', 'email', 'password', 'phone_number', 'image_path', 'profile_photo' );
 	}
@@ -64,6 +64,7 @@ class AGUM_CSV {
 				}
 			}
 
+			$data['source_system'] = 'CSV Upload';
 			$result = AGUM_Users::create( $data );
 			if ( is_wp_error( $result ) ) {
 				++$report['skipped'];
