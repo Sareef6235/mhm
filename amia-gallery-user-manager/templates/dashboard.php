@@ -1,0 +1,72 @@
+<?php
+/** Dashboard shell. */
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+$view = isset( $view ) ? $view : 'dashboard';
+$stats = isset( $stats ) ? $stats : AGUM_Users::stats();
+?>
+<div class="agum-app" data-theme="dark">
+	<aside class="agum-sidebar">
+		<div class="agum-brand"><span class="agum-logo">A</span><div><strong>AMIA Gallery</strong><small>User Manager Pro</small></div></div>
+		<nav>
+			<a href="<?php echo agum_admin_url( 'agum-dashboard' ); ?>">🏠 Dashboard</a>
+			<a href="<?php echo agum_admin_url( 'agum-users' ); ?>">👥 Users</a>
+			<a href="<?php echo agum_admin_url( 'agum-ustads' ); ?>">🧑‍🏫 Ustads</a>
+			<a href="<?php echo agum_admin_url( 'agum-csv' ); ?>">📤 CSV Upload</a>
+			<a href="<?php echo agum_admin_url( 'agum-media' ); ?>">🖼 Media Upload</a>
+			<a href="<?php echo agum_admin_url( 'agum-reports' ); ?>">📊 Reports</a>
+			<a href="<?php echo agum_admin_url( 'agum-settings' ); ?>">⚙ Settings</a>
+			<a href="<?php echo agum_admin_url( 'agum-logs' ); ?>">🔒 Security Logs</a>
+		</nav>
+	</aside>
+	<main class="agum-main">
+		<header class="agum-topbar">
+			<button class="agum-menu-toggle" type="button">☰</button>
+			<div><h1><?php esc_html_e( 'AMIA Gallery User Manager Pro', 'amia-gallery-user-manager' ); ?></h1><p><?php esc_html_e( 'Secure, fast and premium user operations.', 'amia-gallery-user-manager' ); ?></p></div>
+			<div class="agum-top-actions"><input class="agum-live-search" type="search" placeholder="Search users, email, phone, admission no"><div class="agum-notification-center"><button type="button" class="agum-bell" aria-expanded="false" aria-label="Notifications">🔔<span class="agum-notification-count">0</span></button><div class="agum-notification-dropdown" role="region" aria-label="Notification history"><div class="agum-notification-head"><strong>Notifications</strong><button type="button" class="agum-mark-notifications-read">Mark all read</button><button type="button" class="agum-clear-notifications">Clear all</button></div><div class="agum-notification-tools"><input type="search" class="agum-notification-search" placeholder="Search username, ID, role, action, date"><select class="agum-notification-filter"><option value="all">All</option><option value="users">User Actions</option><option value="uploads">Uploads</option><option value="reports">Reports</option><option value="errors">Errors</option><option value="security">Security</option><option value="settings">Settings</option></select></div><div class="agum-notifications"><div class="agum-notification-empty">Loading notifications…</div></div></div></div><span class="agum-avatar"><?php echo esc_html( strtoupper( substr( wp_get_current_user()->display_name, 0, 1 ) ) ); ?></span></div>
+		</header>
+
+		<?php $agum_error = get_transient( 'agum_form_error_' . get_current_user_id() ); if ( $agum_error ) : delete_transient( 'agum_form_error_' . get_current_user_id() ); ?>
+		<section class="agum-card agum-validation-error"><strong><?php esc_html_e( 'Validation error:', 'amia-gallery-user-manager' ); ?></strong> <?php echo esc_html( $agum_error ); ?></section>
+		<?php endif; ?>
+
+		<?php if ( 'dashboard' === $view || 'reports' === $view ) : ?>
+		<section class="agum-grid agum-stats">
+			<div class="agum-card agum-stat"><span>Total Users</span><strong><?php echo esc_html( $stats['total'] ); ?></strong><em>All managed profiles</em></div>
+			<div class="agum-card agum-stat"><span>Students</span><strong><?php echo esc_html( $stats['students'] ); ?></strong><em>Active student records</em></div>
+			<div class="agum-card agum-stat"><span>Ustads</span><strong><?php echo esc_html( $stats['ustads'] ); ?></strong><em>Teaching staff</em></div>
+			<div class="agum-card agum-stat"><span>Mapped Images</span><strong><?php echo esc_html( $stats['images'] ); ?></strong><em>Automatic photo links</em></div>
+		</section>
+
+		<section class="agum-card"><div class="agum-section-head"><h2>Role Overview</h2><span class="agum-pill">Role filters & permissions</span></div><div class="agum-role-grid"><div class="agum-role-card agum-role-student"><strong>Students</strong><span><?php echo esc_html( $stats['students'] ); ?> users</span><p>Subscriber access</p></div><div class="agum-role-card agum-role-ustad"><strong>Ustads</strong><span><?php echo esc_html( $stats['ustads'] ); ?> users</span><p>Editor access</p></div><div class="agum-role-card agum-role-admin"><strong>Admins</strong><span>Administrator</span><p>Management access</p></div><div class="agum-role-card agum-role-superadmin"><strong>Superadmins</strong><span>Administrator</span><p>Full dashboard access</p></div></div></section>
+		<section class="agum-card agum-welcome"><h2>Welcome back</h2><p>Run imports, upload mapped photos, generate OTPs, and monitor security logs from a single modern dashboard.</p><div class="agum-actions"><a class="agum-btn" href="<?php echo agum_admin_url( 'agum-users' ); ?>">Manage Users</a><a class="agum-btn agum-btn-ghost" href="<?php echo agum_admin_url( 'agum-csv' ); ?>">Import CSV</a></div></section>
+		<section class="agum-card agum-dashboard-notification"><div><span class="agum-pill">Live notifications</span><h2>Realtime activity feed</h2><p>New users, CSV imports, image uploads, role changes, and errors appear instantly in the notification bell and toast stack.</p></div><div><div class="agum-notification-tools"><input type="search" class="agum-notification-search" placeholder="Search live notifications"><select class="agum-notification-filter"><option value="all">All</option><option value="users">User Actions</option><option value="uploads">Uploads</option><option value="reports">Reports</option><option value="errors">Errors</option><option value="security">Security</option><option value="settings">Settings</option></select></div><div class="agum-dashboard-notification-list agum-notifications"></div></div></section>
+		<?php endif; ?>
+
+		<?php if ( 'users' === $view ) : ?>
+		<section class="agum-card">
+			<div class="agum-section-head"><h2><?php echo isset( $role ) && 'ustad' === $role ? esc_html__( 'Ustads', 'amia-gallery-user-manager' ) : esc_html__( 'Users', 'amia-gallery-user-manager' ); ?></h2><button class="agum-btn agum-open-modal" data-target="#agum-user-modal">+ Add User</button></div>
+			<div class="agum-filters"><input id="agum-search" type="search" placeholder="Search by name, username, email, phone"><select id="agum-role-filter"><option value="">All roles</option><option value="student">Student</option><option value="ustad">Ustad</option><option value="staff">Staff</option><option value="admin">Admin</option></select><a class="agum-btn agum-btn-ghost" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=agum_export_csv' ), AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ) ); ?>">Export CSV</a><button class="agum-btn agum-danger agum-bulk-delete">Bulk Delete</button><select class="agum-per-page"><option>20</option><option>50</option><option>100</option></select></div>
+			<div id="agum-table-wrap"><?php agum_template( 'tables', array( 'users' => $query['items'] ) ); ?></div><div class="agum-pagination"><button class="agum-btn agum-prev-page" data-page="1">Previous</button><button class="agum-btn agum-page-number" data-page="1">1</button><button class="agum-btn agum-next-page" data-page="2">Next</button><input type="number" min="1" class="agum-jump-page" placeholder="Jump to page"></div>
+		</section>
+		<?php agum_template( 'edit-user' ); endif; ?>
+
+		<?php if ( 'logs' === $view || 'dashboard' === $view || 'reports' === $view ) : ?>
+		<section class="agum-card"><div class="agum-section-head"><h2>Recent Activity</h2><div class="agum-actions"><span class="agum-pill">Live logs</span><button type="button" class="agum-btn agum-danger agum-clear-activity">Clear Recent Activity</button></div></div><div class="agum-timeline">
+		<?php foreach ( (array) $logs as $log ) : ?><div><strong><?php echo esc_html( $log->action ); ?></strong><p><?php echo esc_html( $log->message ); ?></p><time><?php echo esc_html( $log->created_at ); ?></time></div><?php endforeach; ?>
+		</div></section>
+		<?php endif; ?>
+	</main>
+</div>
+
+<div id="agum-delete-modal" class="agum-modal agum-delete-modal" aria-hidden="true">
+	<div class="agum-modal-panel agum-delete-panel">
+		<button class="agum-modal-close" type="button">×</button>
+		<div class="agum-delete-warning">⚠</div>
+		<h2><?php esc_html_e( 'Confirm permanent deletion', 'amia-gallery-user-manager' ); ?></h2>
+		<p><?php esc_html_e( 'This will delete the selected AGUM profile(s) and linked WordPress user(s). Type DELETE to continue.', 'amia-gallery-user-manager' ); ?></p>
+		<div class="agum-delete-preview"><img src="<?php echo esc_url( AGUM_Upload::fallback_image_url() ); ?>" alt="" class="agum-delete-image"><div><strong class="agum-delete-name"><?php esc_html_e( 'Selected users', 'amia-gallery-user-manager' ); ?></strong><small class="agum-delete-count"></small></div></div>
+		<input type="text" class="agum-delete-confirm-text" placeholder="DELETE" autocomplete="off">
+		<div class="agum-modal-actions"><button type="button" class="agum-btn agum-danger agum-confirm-delete" disabled><?php esc_html_e( 'Delete permanently', 'amia-gallery-user-manager' ); ?></button><button type="button" class="agum-btn agum-btn-ghost agum-modal-close"><?php esc_html_e( 'Cancel', 'amia-gallery-user-manager' ); ?></button></div>
+	</div>
+</div>
+<div class="agum-toast" aria-live="polite"></div>

@@ -1,0 +1,1 @@
+<?php get_header(); amia_premium_page_hero( get_the_archive_title(), get_the_archive_description() ); ?><div class="amia-container amia-layout"><section><?php amia_premium_posts_grid(); the_posts_pagination(); ?></section><?php get_sidebar(); ?></div><?php get_footer(); ?>

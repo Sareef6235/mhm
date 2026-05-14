@@ -1,0 +1,5 @@
+const AMIA_CACHE='amia-premium-shell-v2';
+const AMIA_ASSETS=['/','/wp-content/themes/amia-gallery-premium/style.css','/wp-content/themes/amia-gallery-premium/assets/css/theme.css','/wp-content/themes/amia-gallery-premium/assets/js/theme.js','/wp-content/themes/amia-gallery-premium/assets/images/default-profile.svg'];
+self.addEventListener('install',event=>{event.waitUntil(caches.open(AMIA_CACHE).then(cache=>cache.addAll(AMIA_ASSETS)).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==AMIA_CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET'){return;}event.respondWith(caches.match(req).then(cached=>cached||fetch(req).then(resp=>{const copy=resp.clone();if(resp.ok&&new URL(req.url).origin===location.origin){caches.open(AMIA_CACHE).then(cache=>cache.put(req,copy));}return resp;}).catch(()=>caches.match('/'))));});

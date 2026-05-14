@@ -1,0 +1,70 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+$columns = agum_sanitize_columns( $settings['columns'] );
+$field_types = agum_supported_field_types();
+$field_flags = array(
+	'enabled'     => __( 'Show', 'amia-gallery-user-manager' ),
+	'required'    => __( 'Required', 'amia-gallery-user-manager' ),
+	'form'        => __( 'Add Form', 'amia-gallery-user-manager' ),
+	'edit'        => __( 'Edit Modal', 'amia-gallery-user-manager' ),
+	'csv'         => __( 'CSV', 'amia-gallery-user-manager' ),
+	'bulk_upload' => __( 'Bulk Upload', 'amia-gallery-user-manager' ),
+	'image_field' => __( 'Image Field', 'amia-gallery-user-manager' ),
+	'searchable'  => __( 'Search', 'amia-gallery-user-manager' ),
+	'filterable'  => __( 'Filter', 'amia-gallery-user-manager' ),
+	'export'      => __( 'Export', 'amia-gallery-user-manager' ),
+);
+?>
+<div class="agum-app" data-theme="dark">
+	<aside class="agum-sidebar"><div class="agum-brand"><span class="agum-logo">A</span><div><strong>AMIA Gallery</strong><small>Settings</small></div></div><nav><a href="<?php echo agum_admin_url( 'agum-dashboard' ); ?>">🏠 Dashboard</a><a href="<?php echo agum_admin_url( 'agum-users' ); ?>">👥 Users</a><a href="<?php echo agum_admin_url( 'agum-settings' ); ?>">⚙ Settings</a><a href="<?php echo agum_admin_url( 'agum-logs' ); ?>">🔒 Security Logs</a></nav></aside>
+	<main class="agum-main">
+		<header class="agum-topbar"><button class="agum-menu-toggle" type="button">☰</button><div><h1><?php esc_html_e( 'Advanced Dynamic Settings', 'amia-gallery-user-manager' ); ?></h1><p><?php esc_html_e( 'Control required fields, forms, CSV, bulk uploads, searches, filters, exports and dashboard surfaces without code.', 'amia-gallery-user-manager' ); ?></p></div></header>
+		<section class="agum-card"><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="agum-settings-form"><input type="hidden" name="action" value="agum_save_settings"><?php wp_nonce_field( AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ); ?><label>Items per page<input type="number" min="5" max="200" name="items_per_page" value="<?php echo esc_attr( $settings['items_per_page'] ); ?>"></label><label>OTP expiry minutes<input type="number" min="1" max="60" name="otp_expiry_minutes" value="<?php echo esc_attr( $settings['otp_expiry_minutes'] ); ?>"></label><label class="agum-check"><input type="checkbox" name="enable_dark_mode" <?php checked( $settings['enable_dark_mode'] ); ?>> Enable dark mode</label><label class="agum-check"><input type="checkbox" name="delete_on_uninstall" <?php checked( $settings['delete_on_uninstall'] ); ?>> Delete data on uninstall</label><div class="agum-actions"><button class="agum-btn" type="submit">Save Settings</button><button class="agum-btn agum-btn-ghost agum-settings-save-ajax" type="button">AJAX Save</button><button class="agum-btn agum-btn-ghost agum-settings-export" type="button">Export</button><button class="agum-btn agum-danger agum-settings-reset" type="button">Reset</button></div></form></section>
+		<section class="agum-card agum-settings-preview-card"><div class="agum-section-head"><div><h2><?php esc_html_e( 'Live Field Preview', 'amia-gallery-user-manager' ); ?></h2><p><?php esc_html_e( 'Updates instantly as you change required and visibility rules.', 'amia-gallery-user-manager' ); ?></p></div><span class="agum-pill agum-autosave-state"><?php esc_html_e( 'Auto-save ready', 'amia-gallery-user-manager' ); ?></span></div><div class="agum-live-preview-grid"><div><h3><?php esc_html_e( 'Form Preview', 'amia-gallery-user-manager' ); ?></h3><div class="agum-form-preview"></div></div><div><h3><?php esc_html_e( 'Table Preview', 'amia-gallery-user-manager' ); ?></h3><div class="agum-table-preview"></div></div></div></section>
+		<section class="agum-card agum-field-manager-card"><div class="agum-section-head"><h2><?php esc_html_e( 'Required Field & Dynamic Surface Manager', 'amia-gallery-user-manager' ); ?></h2><button class="agum-btn agum-btn-ghost agum-add-column" type="button">+ Add Field</button></div><p><?php esc_html_e( 'Drag to reorder. Toggle where each field appears and whether it is required. Changes automatically update forms, tables, edit modal, CSV import/export, upload screens, search filters, and profile data.', 'amia-gallery-user-manager' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="agum-column-form"><input type="hidden" name="action" value="agum_save_settings"><?php wp_nonce_field( AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ); ?><input type="hidden" name="items_per_page" value="<?php echo esc_attr( $settings['items_per_page'] ); ?>"><input type="hidden" name="otp_expiry_minutes" value="<?php echo esc_attr( $settings['otp_expiry_minutes'] ); ?>"><?php if ( $settings['enable_dark_mode'] ) : ?><input type="hidden" name="enable_dark_mode" value="1"><?php endif; ?><?php if ( $settings['delete_on_uninstall'] ) : ?><input type="hidden" name="delete_on_uninstall" value="1"><?php endif; ?>
+				<div class="agum-column-manager agum-column-manager-advanced" id="agum-column-manager">
+					<?php foreach ( $columns as $index => $column ) : ?>
+					<div class="agum-column-row agum-column-row-advanced" draggable="true">
+						<span class="agum-drag">↕</span><input name="columns[<?php echo esc_attr( $index ); ?>][order]" value="<?php echo esc_attr( $index ); ?>" type="hidden" class="agum-column-order"><input name="columns[<?php echo esc_attr( $index ); ?>][key]" value="<?php echo esc_attr( $column['key'] ); ?>" placeholder="column_key"><input name="columns[<?php echo esc_attr( $index ); ?>][label]" value="<?php echo esc_attr( $column['label'] ); ?>" placeholder="Column label"><select name="columns[<?php echo esc_attr( $index ); ?>][type]"><?php foreach ( $field_types as $type ) : ?><option value="<?php echo esc_attr( $type ); ?>" <?php selected( $column['type'], $type ); ?>><?php echo esc_html( ucfirst( $type ) ); ?></option><?php endforeach; ?></select><input name="columns[<?php echo esc_attr( $index ); ?>][placeholder]" value="<?php echo esc_attr( $column['placeholder'] ); ?>" placeholder="Placeholder"><input name="columns[<?php echo esc_attr( $index ); ?>][default_value]" value="<?php echo esc_attr( $column['default_value'] ); ?>" placeholder="Default value"><input name="columns[<?php echo esc_attr( $index ); ?>][options]" value="<?php echo esc_attr( $column['options'] ); ?>" placeholder="Options: A, B, C">
+						<div class="agum-field-flags"><?php foreach ( $field_flags as $flag => $label ) : ?><label class="agum-check"><input type="checkbox" name="columns[<?php echo esc_attr( $index ); ?>][<?php echo esc_attr( $flag ); ?>]" value="1" <?php checked( ! empty( $column[ $flag ] ) ); ?>> <?php echo esc_html( $label ); ?></label><?php endforeach; ?></div><button class="agum-icon agum-remove-column" type="button">×</button>
+					</div>
+					<?php endforeach; ?>
+				</div><div class="agum-actions"><button class="agum-btn" type="submit">Save Field Rules</button><button class="agum-btn agum-btn-ghost agum-settings-save-ajax" type="button">AJAX Save Field Rules</button></div>
+			</form>
+		</section>
+		<section class="agum-card"><div class="agum-section-head"><h2>Role Management</h2><span class="agum-pill">Permissions & Access</span></div><div class="agum-role-grid"><?php foreach ( array( 'student' => 'subscriber', 'ustad' => 'editor', 'admin' => 'administrator', 'superadmin' => 'administrator' ) as $agum_role => $wp_role ) : ?><div class="agum-role-card agum-role-<?php echo esc_attr( $agum_role ); ?>"><strong><?php echo esc_html( ucfirst( $agum_role ) ); ?></strong><span>WordPress role: <?php echo esc_html( $wp_role ); ?></span><p>Role-based dashboard access, widgets, colors and permissions.</p></div><?php endforeach; ?></div></section>
+		<section class="agum-card"><div class="agum-section-head"><div><h2>Sync AGUM Users to WordPress Users</h2><p>Create or link native WordPress users for legacy rows in the AGUM profile table.</p></div><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="agum_sync_wp_users"><?php wp_nonce_field( AGUM_Security::NONCE_ACTION, AGUM_Security::NONCE_NAME ); ?><button class="agum-btn" type="submit">Sync AGUM Users to WordPress Users</button></form></div><?php if ( ! empty( $sync_report ) && is_array( $sync_report ) ) : ?><div class="agum-grid"><div class="agum-stat"><span>Created</span><strong><?php echo esc_html( $sync_report['created'] ); ?></strong></div><div class="agum-stat"><span>Linked</span><strong><?php echo esc_html( $sync_report['linked'] ); ?></strong></div><div class="agum-stat"><span>Skipped</span><strong><?php echo esc_html( $sync_report['skipped'] ); ?></strong></div></div><ul class="agum-errors"><?php foreach ( $sync_report['errors'] as $error ) : ?><li><?php echo esc_html( $error ); ?></li><?php endforeach; ?></ul><?php endif; ?></section>
+	</main>
+</div>
+
+
+<div id="agum-field-modal" class="agum-modal agum-field-modal" aria-hidden="true">
+	<div class="agum-modal-panel agum-field-modal-panel" role="dialog" aria-modal="true" aria-labelledby="agum-field-modal-title">
+		<button class="agum-modal-close" type="button" aria-label="<?php esc_attr_e( 'Close', 'amia-gallery-user-manager' ); ?>">×</button>
+		<div class="agum-field-modal-hero"><span class="agum-pill"><?php esc_html_e( 'Dynamic Column', 'amia-gallery-user-manager' ); ?></span><h2 id="agum-field-modal-title"><?php esc_html_e( 'Create New Field', 'amia-gallery-user-manager' ); ?></h2><p><?php esc_html_e( 'Create a database-backed field and instantly publish it to forms, tables, CSV, search, filters, and profile surfaces.', 'amia-gallery-user-manager' ); ?></p></div>
+		<form class="agum-create-field-form">
+			<div class="agum-field-modal-grid">
+				<label><?php esc_html_e( 'Field Name', 'amia-gallery-user-manager' ); ?><input type="text" name="key" required pattern="[A-Za-z_][A-Za-z0-9_]*" placeholder="blood_group"></label>
+				<label><?php esc_html_e( 'Field Label', 'amia-gallery-user-manager' ); ?><input type="text" name="label" required placeholder="Blood Group"></label>
+				<label><?php esc_html_e( 'Field Type', 'amia-gallery-user-manager' ); ?><select name="type"><?php foreach ( $field_types as $type ) : ?><option value="<?php echo esc_attr( $type ); ?>"><?php echo esc_html( ucfirst( $type ) ); ?></option><?php endforeach; ?></select></label>
+				<label><?php esc_html_e( 'Placeholder', 'amia-gallery-user-manager' ); ?><input type="text" name="placeholder" placeholder="Enter value"></label>
+				<label><?php esc_html_e( 'Default Value', 'amia-gallery-user-manager' ); ?><input type="text" name="default_value" placeholder="Optional"></label>
+				<label><?php esc_html_e( 'Options', 'amia-gallery-user-manager' ); ?><input type="text" name="options" placeholder="A+, A-, B+"></label>
+			</div>
+			<div class="agum-create-field-toggles">
+				<label class="agum-check agum-toggle"><input type="checkbox" name="required" value="1"><span></span><?php esc_html_e( 'Required', 'amia-gallery-user-manager' ); ?></label>
+				<label class="agum-check agum-toggle"><input type="checkbox" name="searchable" value="1"><span></span><?php esc_html_e( 'Searchable', 'amia-gallery-user-manager' ); ?></label>
+				<label class="agum-check agum-toggle"><input type="checkbox" name="filterable" value="1"><span></span><?php esc_html_e( 'Filterable', 'amia-gallery-user-manager' ); ?></label>
+				<label class="agum-check agum-toggle"><input type="checkbox" name="csv" value="1" checked><span></span><?php esc_html_e( 'CSV', 'amia-gallery-user-manager' ); ?></label>
+				<label class="agum-check agum-toggle"><input type="checkbox" name="bulk_upload" value="1" checked><span></span><?php esc_html_e( 'Bulk Upload', 'amia-gallery-user-manager' ); ?></label>
+			</div>
+			<div class="agum-modal-actions"><button type="submit" class="agum-btn agum-create-field-save"><?php esc_html_e( 'Save Field', 'amia-gallery-user-manager' ); ?></button><button type="button" class="agum-btn agum-btn-ghost agum-modal-close"><?php esc_html_e( 'Cancel', 'amia-gallery-user-manager' ); ?></button></div>
+		</form>
+	</div>
+</div>
+
+<div id="agum-delete-modal" class="agum-modal agum-delete-modal" aria-hidden="true"><div class="agum-modal-panel agum-delete-panel"><button class="agum-modal-close" type="button">×</button><div class="agum-delete-warning">⚠</div><h2><?php esc_html_e( 'Confirm permanent deletion', 'amia-gallery-user-manager' ); ?></h2><p><?php esc_html_e( 'Type DELETE to continue.', 'amia-gallery-user-manager' ); ?></p><div class="agum-delete-preview"><img src="<?php echo esc_url( AGUM_Upload::fallback_image_url() ); ?>" alt="" class="agum-delete-image"><div><strong class="agum-delete-name"><?php esc_html_e( 'Selected item', 'amia-gallery-user-manager' ); ?></strong><small class="agum-delete-count"></small></div></div><input type="text" class="agum-delete-confirm-text" placeholder="DELETE" autocomplete="off"><div class="agum-modal-actions"><button type="button" class="agum-btn agum-danger agum-confirm-delete" disabled><?php esc_html_e( 'Delete permanently', 'amia-gallery-user-manager' ); ?></button><button type="button" class="agum-btn agum-btn-ghost agum-modal-close"><?php esc_html_e( 'Cancel', 'amia-gallery-user-manager' ); ?></button></div></div></div>
+<div class="agum-toast" aria-live="polite"></div>

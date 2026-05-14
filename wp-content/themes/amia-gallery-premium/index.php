@@ -1,0 +1,1 @@
+<?php get_header(); ?><div class="amia-container amia-layout"><section><?php if ( have_posts() ) { amia_premium_posts_grid(); } else { ?><div class="amia-card">No content found.</div><?php } ?></section><?php get_sidebar(); ?></div><?php get_footer(); ?>

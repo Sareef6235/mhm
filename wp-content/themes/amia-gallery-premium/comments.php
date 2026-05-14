@@ -1,0 +1,2 @@
+<?php if ( ! defined( 'ABSPATH' ) ) { exit; } if ( post_password_required() ) { return; } ?>
+<section id="comments" class="comments-area amia-card"><h2><?php comments_number( 'No comments', 'One comment', '% comments' ); ?></h2><?php if ( have_comments() ) : ?><ol class="comment-list"><?php wp_list_comments( array( 'style' => 'ol', 'short_ping' => true, 'avatar_size' => 48 ) ); ?></ol><?php the_comments_pagination(); endif; ?><?php comment_form(); ?></section>

@@ -1,0 +1,1 @@
+<?php get_header(); ?><section class="amia-section"><div class="amia-container amia-card"><span class="amia-kicker">404</span><h1>Page not found</h1><p class="amia-muted">The page you requested could not be found.</p><a class="amia-btn" href="<?php echo esc_url( home_url( '/' ) ); ?>">Go Home</a></div></section><?php get_footer(); ?>

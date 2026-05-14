@@ -1,0 +1,1 @@
+<?php /* Template Name: AMIA Login */ get_header(); ?><section class="amia-section"><div class="amia-container amia-card"><h1>Login</h1><?php wp_login_form( array( 'redirect' => home_url( '/dashboard/' ) ) ); ?><a href="<?php echo esc_url( wp_lostpassword_url() ); ?>">Forgot password?</a></div></section><?php get_footer(); ?>
