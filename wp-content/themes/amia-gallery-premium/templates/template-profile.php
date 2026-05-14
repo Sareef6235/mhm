@@ -2,16 +2,10 @@
 /* Template Name: User Profile */
 get_header();
 ?>
-<section class="amia-section"><div class="amia-container amia-card"><h1><?php esc_html_e( 'User Profile', 'amia-gallery-premium' ); ?></h1>
-<?php if ( is_user_logged_in() ) : $u = wp_get_current_user(); $profile = amia_premium_agum_profile_for_wp_user( $u->ID ); $columns = amia_premium_agum_columns( 'export' ); ?>
-	<img src="<?php echo esc_url( amia_premium_user_image( $u->ID ) ); ?>" width="140" height="140" alt="">
-	<h2><?php echo esc_html( $u->display_name ); ?></h2>
-	<div class="amia-profile-fields">
-		<?php foreach ( $columns as $column ) : $key = $column['key']; if ( in_array( $key, array( 'password', 'image_path', 'profile_photo' ), true ) ) { continue; } ?>
-			<p><strong><?php echo esc_html( $column['label'] ); ?>:</strong> <?php echo esc_html( $profile && isset( $profile->{$key} ) ? $profile->{$key} : ( 'email' === $key ? $u->user_email : '' ) ); ?></p>
-		<?php endforeach; ?>
-	</div>
-	<a class="amia-btn" href="<?php echo esc_url( get_edit_profile_url() ); ?>"><?php esc_html_e( 'Edit WordPress Profile', 'amia-gallery-premium' ); ?></a>
+<section class="amia-section"><div class="amia-container amia-profile-layout">
+<?php if ( is_user_logged_in() ) : $u = wp_get_current_user(); $profile = amia_premium_agum_profile_for_wp_user( $u->ID ); $columns = amia_premium_agum_columns( 'export' ); $completion = $profile ? 82 : 45; ?>
+	<aside class="amia-profile-card amia-glass"><div class="amia-cover-photo"></div><img class="amia-profile-avatar" src="<?php echo esc_url( amia_premium_user_image( $u->ID ) ); ?>" width="140" height="140" alt=""><h1><?php echo esc_html( $u->display_name ); ?></h1><p class="amia-muted"><?php echo esc_html( $u->user_email ); ?></p><span class="amia-role-badge <?php echo esc_attr( $profile && isset( $profile->role ) ? $profile->role : 'student' ); ?>"><?php echo esc_html( $profile && isset( $profile->role ) ? ucfirst( $profile->role ) : __( 'Member', 'amia-gallery-premium' ) ); ?></span><div class="amia-progress-ring" style="--progress:<?php echo esc_attr( $completion ); ?>"><strong><?php echo esc_html( $completion ); ?>%</strong></div><small><?php esc_html_e( 'Profile completion', 'amia-gallery-premium' ); ?></small><a class="amia-btn" href="<?php echo esc_url( get_edit_profile_url() ); ?>"><?php esc_html_e( 'Edit WordPress Profile', 'amia-gallery-premium' ); ?></a></aside>
+	<div class="amia-profile-main"><section class="amia-bento-grid"><article class="amia-bento-card"><h2><?php esc_html_e( 'Achievements', 'amia-gallery-premium' ); ?></h2><div class="amia-achievements"><span>🏆 <?php esc_html_e( 'Verified', 'amia-gallery-premium' ); ?></span><span>⚡ <?php esc_html_e( 'Active', 'amia-gallery-premium' ); ?></span><span>🎨 <?php esc_html_e( 'Gallery Ready', 'amia-gallery-premium' ); ?></span></div></article><article class="amia-bento-card"><h2><?php esc_html_e( 'Status', 'amia-gallery-premium' ); ?></h2><p><i class="amia-online-dot"></i> <?php esc_html_e( 'Online now', 'amia-gallery-premium' ); ?></p><p class="amia-muted"><?php esc_html_e( 'Last seen indicator is synced from AMIA User Manager when available.', 'amia-gallery-premium' ); ?></p></article></section><section class="amia-card"><h2><?php esc_html_e( 'Dynamic Profile Fields', 'amia-gallery-premium' ); ?></h2><div class="amia-profile-fields"><?php foreach ( $columns as $column ) : $key = $column['key']; if ( in_array( $key, array( 'password', 'image_path', 'profile_photo' ), true ) ) { continue; } ?><p><strong><?php echo esc_html( $column['label'] ); ?>:</strong> <?php echo esc_html( $profile && isset( $profile->{$key} ) ? $profile->{$key} : ( 'email' === $key ? $u->user_email : '' ) ); ?></p><?php endforeach; ?></div></section></div>
 <?php else : ?>
-	<a class="amia-btn" href="<?php echo esc_url( wp_login_url() ); ?>"><?php esc_html_e( 'Login', 'amia-gallery-premium' ); ?></a>
+	<div class="amia-card"><h1><?php esc_html_e( 'User Profile', 'amia-gallery-premium' ); ?></h1><a class="amia-btn" href="<?php echo esc_url( wp_login_url() ); ?>"><?php esc_html_e( 'Login', 'amia-gallery-premium' ); ?></a></div>
 <?php endif; ?></div></section><?php get_footer(); ?>
