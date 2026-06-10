@@ -1,0 +1,32 @@
+:root { --ink: #000; --paper: #fff; }
+body { background: #f4f5f7; color: #111; }
+.content-shell { max-width: 1320px; margin: 0 auto; }
+.stat-card { border: 1px solid #111; border-radius: 0; background: #fff; }
+.table-actions { white-space: nowrap; }
+.form-help { font-size: .875rem; color: #555; }
+.student-card { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); padding: 10px; width: 180mm; min-height: 105mm; margin: 0 auto 16px; page-break-inside: avoid; font-family: Arial, Helvetica, sans-serif; }
+.card-heading { border: 1.5px solid var(--ink); text-align: center; padding: 10px 8px; margin-bottom: 10px; min-height: 32mm; display: flex; flex-direction: column; justify-content: center; }
+.card-heading h2 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+.card-heading h3 { margin: 8px 0 0; font-size: 22px; font-weight: 700; }
+.card-info-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.card-info-table th, .card-info-table td { border: 1.5px solid var(--ink); padding: 14px 10px; height: 24mm; vertical-align: middle; font-size: 25px; line-height: 1.15; }
+.card-info-table th { width: 34%; text-align: center; font-weight: 900; }
+.card-info-table td { font-weight: 800; font-style: italic; }
+.card-footer-text { border: 1.5px solid var(--ink); border-top: 0; text-align: center; font-weight: 700; padding: 8px; }
+.card-page-grid { display: grid; grid-template-columns: 1fr; gap: 10mm; }
+.preview-wrap { overflow-x: auto; background: #ddd; padding: 20px; }
+.required-badge { font-size: .75rem; }
+@media print {
+    @page { size: A4; margin: 8mm; }
+    body { background: #fff !important; }
+    nav, .no-print, .btn, .alert { display: none !important; }
+    main, .container-fluid, .content-shell { padding: 0 !important; margin: 0 !important; max-width: none !important; width: 100% !important; }
+    .student-card { box-shadow: none; margin: 0 auto 8mm; width: 190mm; min-height: auto; }
+    .card-page-item { page-break-inside: avoid; }
+}
+@media (max-width: 768px) {
+    .student-card { width: 100%; min-width: 680px; }
+    .card-heading h2 { font-size: 24px; }
+    .card-heading h3 { font-size: 19px; }
+    .card-info-table th, .card-info-table td { font-size: 21px; }
+}
