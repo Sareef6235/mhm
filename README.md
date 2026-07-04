@@ -13,3 +13,6 @@ Dashboard, members, digital ID cards, QR/barcode, departments, classes, categori
 
 ## Security
 Prepared PDO statements, CSRF tokens, password hashing, secure session cookies, permission hooks, upload validation, XSS escaping and audit logging are included.
+
+## Member File Storage
+Every member receives a dedicated enterprise storage tree at `uploads/members/{member_unique_id}/` with `profile`, `signature`, `documents`, `certificates`, `payments`, `attendance`, `gallery`, and `other` folders. The member profile document manager supports multiple uploads, preview/download links, rename, move, copy, archive, restore, delete, search, filters, notes and metadata tracking through `member_files`.

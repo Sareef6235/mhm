@@ -5,12 +5,20 @@ require_login();
 require __DIR__ . '/../includes/sidebar.php';
 verify_csrf();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $photo = upload_file($_FILES['photo'] ?? [], 'photos');
+    $memberUid = $_POST['member_uid'] ?: 'MHM' . date('Y') . random_int(100000, 999999);
+    create_member_storage($memberUid);
     $token = secure_token();
     $stmt = db()->prepare('INSERT INTO members(member_uid,verify_token,full_name,father_name,mother_name,gender,dob,blood_group,nationality,religion,address,district,state,country,phone,whatsapp,email,emergency_contact,occupation,qualification,joining_date,status,department_id,class_id,category_id,roll_number,admission_number,notes,photo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$_POST['member_uid'] ?: 'MID' . date('Y') . random_int(1000, 9999), $token, $_POST['full_name'], $_POST['father_name'], $_POST['mother_name'], $_POST['gender'], $_POST['dob'], $_POST['blood_group'], $_POST['nationality'], $_POST['religion'], $_POST['address'], $_POST['district'], $_POST['state'], $_POST['country'], $_POST['phone'], $_POST['whatsapp'], $_POST['email'], $_POST['emergency_contact'], $_POST['occupation'], $_POST['qualification'], $_POST['joining_date'], $_POST['status'], $_POST['department_id'] ?: null, $_POST['class_id'] ?: null, $_POST['category_id'] ?: null, $_POST['roll_number'], $_POST['admission_number'], $_POST['notes'], $photo]);
-    audit('create', 'members', (int) db()->lastInsertId());
-    header('Location: /admin/members.php?created=1');
+    $stmt->execute([$memberUid, $token, $_POST['full_name'], $_POST['father_name'], $_POST['mother_name'], $_POST['gender'], $_POST['dob'], $_POST['blood_group'], $_POST['nationality'], $_POST['religion'], $_POST['address'], $_POST['district'], $_POST['state'], $_POST['country'], $_POST['phone'], $_POST['whatsapp'], $_POST['email'], $_POST['emergency_contact'], $_POST['occupation'], $_POST['qualification'], $_POST['joining_date'], $_POST['status'], $_POST['department_id'] ?: null, $_POST['class_id'] ?: null, $_POST['category_id'] ?: null, $_POST['roll_number'], $_POST['admission_number'], $_POST['notes'], null]);
+    $memberId = (int) db()->lastInsertId();
+    $member = ['id' => $memberId, 'member_uid' => $memberUid];
+    $photo = upload_member_file($_FILES['photo'] ?? [], $member, 'profile', 'Primary profile photo');
+    if ($photo) {
+        $update = db()->prepare('UPDATE members SET photo=? WHERE id=?');
+        $update->execute([$photo['path'], $memberId]);
+    }
+    audit('create', 'members', $memberId);
+    header('Location: /admin/member-profile.php?id=' . $memberId . '&created=1');
     exit;
 }
 $q = '%' . ($_GET['q'] ?? '') . '%';
@@ -53,7 +61,7 @@ $members = $stmt->fetchAll();
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
-                    <tr><th>Member</th><th>Member ID <i class="bi bi-arrow-down-up ms-1"></i></th><th>Department</th><th>Status</th><th>Secure QR</th><th class="text-end">Action</th></tr>
+                    <tr><th>Member</th><th>Member ID <i class="bi bi-arrow-down-up ms-1"></i></th><th>Department</th><th>Status</th><th>Secure QR</th><th>Files</th><th class="text-end">Action</th></tr>
                 </thead>
                 <tbody>
                     <?php foreach ($members as $m): ?>
@@ -68,11 +76,12 @@ $members = $stmt->fetchAll();
                             <td><?= e($m['department']) ?></td>
                             <td><span class="badge-soft-success"><i class="bi bi-check2-circle me-1"></i><?= e($m['status']) ?></span></td>
                             <td><a class="btn btn-sm btn-outline-primary" href="/id/<?= e($m['verify_token']) ?>"><i class="bi bi-qr-code me-1"></i>Verify</a></td>
+                            <td><a class="btn btn-sm btn-outline-secondary" href="/admin/member-profile.php?id=<?= (int) $m['id'] ?>"><i class="bi bi-folder2-open me-1"></i>Manager</a></td>
                             <td class="text-end"><a class="btn btn-sm btn-premium" href="/admin/id-card.php?id=<?= (int) $m['id'] ?>"><i class="bi bi-person-vcard me-1"></i>Card</a></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (!$members): ?>
-                        <tr><td colspan="6" class="text-center py-5"><i class="bi bi-stars fs-1 text-primary"></i><h3 class="h5 mt-3">No members found</h3><p class="text-muted mb-0">Create your first premium smart ID profile.</p></td></tr>
+                        <tr><td colspan="7" class="text-center py-5"><i class="bi bi-stars fs-1 text-primary"></i><h3 class="h5 mt-3">No members found</h3><p class="text-muted mb-0">Create your first premium smart ID profile.</p></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

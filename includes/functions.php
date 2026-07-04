@@ -29,3 +29,74 @@ function upload_file(array $file, string $folder): ?string {
     $path = $dir . '/' . $name; if (!move_uploaded_file($file['tmp_name'], $path)) throw new RuntimeException('Upload failed.'); return 'uploads/' . trim($folder, '/') . '/' . $name;
 }
 function json_response(array $payload): void { header('Content-Type: application/json'); echo json_encode($payload); exit; }
+
+/** Enterprise member file-storage helpers. */
+function member_storage_categories(): array {
+    return ['profile', 'signature', 'documents', 'certificates', 'payments', 'attendance', 'gallery', 'other'];
+}
+function safe_member_uid(string $uid): string {
+    return preg_replace('/[^A-Za-z0-9_-]/', '', $uid) ?: 'member_' . secure_token();
+}
+function member_storage_root(string $memberUid): string {
+    return __DIR__ . '/../uploads/members/' . safe_member_uid($memberUid);
+}
+function member_storage_public_path(string $memberUid, string $category, string $filename = ''): string {
+    $category = in_array($category, member_storage_categories(), true) ? $category : 'other';
+    return 'uploads/members/' . safe_member_uid($memberUid) . '/' . $category . ($filename ? '/' . $filename : '');
+}
+function create_member_storage(string $memberUid): void {
+    $root = member_storage_root($memberUid);
+    foreach (member_storage_categories() as $category) {
+        $dir = $root . '/' . $category;
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $index = $dir . '/index.html';
+        if (!file_exists($index)) file_put_contents($index, '');
+    }
+}
+function normalize_member_file_category(string $category): string {
+    return in_array($category, member_storage_categories(), true) ? $category : 'other';
+}
+function format_bytes(int $bytes): string {
+    $units = ['B', 'KB', 'MB', 'GB']; $i = 0;
+    while ($bytes >= 1024 && $i < count($units) - 1) { $bytes /= 1024; $i++; }
+    return round($bytes, $i ? 1 : 0) . ' ' . $units[$i];
+}
+function member_file_icon(string $extension): string {
+    $extension = strtolower($extension);
+    if (in_array($extension, ['jpg','jpeg','png','webp','gif'], true)) return 'bi-file-earmark-image';
+    if ($extension === 'pdf') return 'bi-file-earmark-pdf';
+    if (in_array($extension, ['doc','docx'], true)) return 'bi-file-earmark-word';
+    if (in_array($extension, ['xls','xlsx'], true)) return 'bi-file-earmark-excel';
+    if (in_array($extension, ['ppt','pptx'], true)) return 'bi-file-earmark-ppt';
+    if ($extension === 'zip') return 'bi-file-earmark-zip';
+    if (in_array($extension, ['mp3','wav'], true)) return 'bi-file-earmark-music';
+    if (in_array($extension, ['mp4','mov','avi','webm'], true)) return 'bi-file-earmark-play';
+    return 'bi-file-earmark';
+}
+function upload_member_file(array $file, array $member, string $category, string $notes = ''): ?array {
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;
+    $config = require __DIR__ . '/../config/config.php';
+    if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > $config['security']['upload_max_bytes']) throw new RuntimeException('Invalid upload size.');
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($extension, $config['security']['allowed_uploads'], true)) throw new RuntimeException('File type not allowed.');
+    $memberUid = safe_member_uid($member['member_uid']);
+    $category = normalize_member_file_category($category);
+    create_member_storage($memberUid);
+    $storedName = date('Ymd_His') . '_' . secure_token() . '.' . $extension;
+    $dir = member_storage_root($memberUid) . '/' . $category;
+    $target = $dir . '/' . $storedName;
+    if (!move_uploaded_file($file['tmp_name'], $target)) throw new RuntimeException('Upload failed.');
+    $relativePath = member_storage_public_path($memberUid, $category, $storedName);
+    $mime = mime_content_type($target) ?: 'application/octet-stream';
+    $stmt = db()->prepare('INSERT INTO member_files(member_id, category, file_name, original_file_name, file_path, mime_type, file_extension, file_size, uploaded_by, status, notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([(int)$member['id'], $category, $storedName, $file['name'], $relativePath, $mime, $extension, (int)$file['size'], $_SESSION['user']['id'] ?? null, 'active', $notes]);
+    return ['id' => db()->lastInsertId(), 'path' => $relativePath, 'name' => $storedName];
+}
+function upload_member_files(array $files, array $member, string $category, string $notes = ''): int {
+    $count = 0;
+    foreach (($files['name'] ?? []) as $i => $name) {
+        $file = ['name'=>$name, 'type'=>$files['type'][$i] ?? '', 'tmp_name'=>$files['tmp_name'][$i] ?? '', 'error'=>$files['error'][$i] ?? UPLOAD_ERR_NO_FILE, 'size'=>$files['size'][$i] ?? 0];
+        if (upload_member_file($file, $member, $category, $notes)) $count++;
+    }
+    return $count;
+}

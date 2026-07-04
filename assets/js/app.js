@@ -88,3 +88,17 @@ if (document.getElementById('analyticsChart')) {
         }
     });
 }
+
+document.querySelectorAll('[data-progress-upload]').forEach(input => input.addEventListener('change', () => {
+    const panel = input.closest('.upload-panel');
+    const bar = panel?.querySelector('.progress-bar');
+    if (!bar) return;
+    bar.style.width = '0%';
+    let progress = 0;
+    const timer = setInterval(() => {
+        progress += 12;
+        bar.style.width = `${Math.min(progress, 96)}%`;
+        if (progress >= 96) clearInterval(timer);
+    }, 80);
+    toast(`${input.files.length} file(s) ready for upload`, 'info');
+}));

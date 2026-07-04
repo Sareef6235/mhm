@@ -14,6 +14,6 @@ return [
         'session_timeout' => 1800,
         'max_login_attempts' => 5,
         'upload_max_bytes' => 5242880,
-        'allowed_uploads' => ['jpg','jpeg','png','webp','pdf','doc','docx','xls','xlsx','zip'],
+        'allowed_uploads' => ['jpg','jpeg','png','webp','gif','pdf','doc','docx','xls','xlsx','ppt','pptx','zip','mp3','wav','mp4','mov','avi','webm'],
     ],
 ];
