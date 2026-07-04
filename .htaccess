@@ -1,0 +1,5 @@
+RewriteEngine On
+RewriteRule ^id/([A-Za-z0-9]+)$ /id/index.php [L,QSA]
+<FilesMatch "\.(sql|md)$">
+  Require all denied
+</FilesMatch>
