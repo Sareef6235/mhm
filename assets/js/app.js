@@ -1,0 +1,8 @@
+/** Premium UI interactions, AJAX helpers, previews, counters, charts and confirmations. */
+window.addEventListener('load',()=>document.getElementById('loader')?.classList.add('hide'));
+function toast(message,type='success'){const el=document.getElementById('appToast');if(!el)return;el.querySelector('.toast-body').textContent=message;el.classList.toggle('text-bg-danger',type==='error');bootstrap.Toast.getOrCreateInstance(el).show()}
+function confirmDelete(message='Delete this record?'){return confirm(message)}
+document.addEventListener('click',e=>{if(e.target.closest('[data-toggle-sidebar]'))document.getElementById('sidebar')?.classList.toggle('show');if(e.target.closest('[data-theme-toggle]')){const html=document.documentElement;html.dataset.bsTheme=html.dataset.bsTheme==='dark'?'light':'dark';}});
+document.querySelectorAll('[data-counter]').forEach(el=>{let target=+el.dataset.counter,cur=0,step=Math.max(1,Math.ceil(target/60));let timer=setInterval(()=>{cur+=step;if(cur>=target){cur=target;clearInterval(timer)}el.textContent=cur.toLocaleString()},18)});
+document.querySelectorAll('[data-preview]').forEach(input=>input.addEventListener('change',()=>{const img=document.querySelector(input.dataset.preview);if(input.files?.[0]&&img){img.src=URL.createObjectURL(input.files[0]);img.classList.remove('d-none')}}));
+if(document.getElementById('analyticsChart')) new Chart(document.getElementById('analyticsChart'),{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[{label:'Members',data:[12,25,38,50,73,96],borderColor:'#5b5cf6',backgroundColor:'rgba(91,92,246,.14)',fill:true,tension:.45}]},options:{responsive:true,plugins:{legend:{display:false}}}});
